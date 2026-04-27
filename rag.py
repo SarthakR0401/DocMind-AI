@@ -1,28 +1,22 @@
-from PyPDF2 import PdfReader
-
+import pdfplumber
 
 def load_pdf(file) -> tuple[str, int]:
     """
-    Extract text from a PDF file.
+    Extract text from a PDF file using pdfplumber for better reliability.
     Returns (full_text, page_count).
-    Always returns a valid tuple — never raises to the caller.
     """
     try:
-        reader = PdfReader(file)
-        page_count = len(reader.pages)
         text = ""
-        for page in reader.pages:
-            try:
+        page_count = 0
+        with pdfplumber.open(file) as pdf:
+            page_count = len(pdf.pages)
+            for page in pdf.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
-            except Exception:
-                continue   # skip unreadable pages, keep going
-
         return text, page_count
-
     except Exception as e:
-        # Return safe defaults so the caller never gets an unpack error
+        print(f"Error reading PDF: {e}")
         return "", 0
 
 
