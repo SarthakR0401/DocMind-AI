@@ -20,8 +20,12 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    // Small delay ensures DOM has rendered new message height
+    const timer = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, loading]);
 
   const handleSubmit = async (q?: string) => {
     const question = typeof q === 'string' ? q : input;
