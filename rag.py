@@ -34,11 +34,16 @@ def load_pdf(file) -> tuple[str, int]:
             # DEBUG: Print the actual API result to the Render logs
             print(f"OCR API Result: {result}")
             
-            if result.get('OCRExitCode') == 1:
+            exit_code = result.get('OCRExitCode')
+            if exit_code in [1, 2, 4]: # 1: Success, 2: Success (no text found), 4: Partial success (limit reached)
                 parsed_text = ""
                 for page in result.get('ParsedResults', []):
                     parsed_text += page.get('ParsedText', '') + "\n"
                 text = parsed_text
+                
+                if exit_code == 4:
+                    print("OCR Warning: Free page limit reached. Only first 3 pages extracted.")
+                
                 print(f"OCR Success! Extracted {len(text)} characters.")
             else:
                 error_msg = result.get('ErrorMessage', 'Unknown API Error')
