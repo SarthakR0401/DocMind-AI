@@ -19,31 +19,46 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             
-            // 1. Get all deployments
+            // 1. Get ALL deployments (paginate to ensure we see every single one)
             const deployments = await github.paginate(github.rest.repos.listDeployments, {
               owner,
               repo,
             });
             
-            // 2. Sort by ID (usually chronological) and keep the newest one
-            const oldDeployments = deployments
-              .sort((a, b) => b.id - a.id)
-              .slice(1);
-              
-            console.log(`Found ${oldDeployments.length} old deployments to delete.`);
+            console.log(`Analyzing ${deployments.length} deployments...`);
             
-            // 3. Delete them
-            for (const deployment of oldDeployments) {
+            if (deployments.length <= 1) {
+              console.log("Only 1 deployment found. Nothing to clean.");
+              return;
+            }
+
+            // 2. Sort by ID descending (Newest first)
+            deployments.sort((a, b) => b.id - a.id);
+            
+            // 3. Keep the newest one, delete EVERYTHING else
+            const newest = deployments[0];
+            const toDelete = deployments.slice(1);
+            
+            console.log(`Success! Keeping newest deployment: ${newest.id} (${newest.environment})`);
+            console.log(`Starting wipe of ${toDelete.length} old deployments...`);
+            
+            for (const dep of toDelete) {
               try {
-                // We need to set the status to 'inactive' or similar if needed, 
-                // but direct deletion is usually enough for the UI list.
+                // To delete a deployment, the API often requires it to be inactive first
+                await github.rest.repos.createDeploymentStatus({
+                  owner,
+                  repo,
+                  deployment_id: dep.id,
+                  state: 'inactive'
+                });
+
                 await github.rest.repos.deleteDeployment({
                   owner,
                   repo,
-                  deployment_id: deployment.id,
+                  deployment_id: dep.id,
                 });
-                console.log(`Deleted deployment ${deployment.id}`);
+                console.log(`✅ Deleted: ${dep.id} [${dep.environment}]`);
               } catch (e) {
-                console.log(`Failed to delete ${deployment.id}: ${e.message}`);
+                console.log(`❌ Skipped: ${dep.id} - ${e.message}`);
               }
             }
