@@ -54,7 +54,12 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
       
       if (!res.ok) throw new Error("API failed");
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "assistant", content: data.answer, ts: data.ts }]);
+      const localTs = new Date().toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      setMessages(prev => [...prev, { role: "assistant", content: data.answer, ts: localTs }]);
     } catch (err) {
       console.error(err);
       setMessages(prev => [...prev, { role: "assistant", content: "Sorry, there was an error communicating with the server.", ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) }]);
