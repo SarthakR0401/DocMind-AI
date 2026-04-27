@@ -215,6 +215,14 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
       {/* Messages - Scrollable Area */}
       <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
         <div className="space-y-5 pb-10">
+          {/* Start Date Badge */}
+          <div className="flex justify-center mb-8">
+            <span className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest"
+              style={{ background: '#FFFFFF', border: '1.2px solid #E4DEFF', color: '#8080B0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              Conversation started on {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
+
           {messages.map((msg, i) => (
             <div key={i} className="animate-fade-up">
               {msg.role === 'user' ? (
