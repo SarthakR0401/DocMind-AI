@@ -87,28 +87,41 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#F8F6FF' }}>
+    <div className="flex h-screen overflow-hidden relative" style={{ background: '#F8F6FF' }}>
 
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        view={view}
-        setView={setView}
-        pdfName={pdfName}
-        pdfPages={pdfPages}
-        wordCount={wordCount}
-        archiveCount={chatArchive.length}
-        onPdfLoad={handlePdfLoad}
-        onSave={saveChat}
-        onClear={clearChat}
-        onLogout={onLogout}
-        hasMessages={messages.length > 0}
-        open={sidebarOpen}
-        setOpen={setSidebarOpen}
-      />
+      {/* Sidebar Overlay for Mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Adaptive Positioning */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 md:relative md:z-auto transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <Sidebar
+          user={user}
+          view={view}
+          setView={(v) => { setView(v); if (window.innerWidth < 768) setSidebarOpen(false); }}
+          pdfName={pdfName}
+          pdfPages={pdfPages}
+          wordCount={wordCount}
+          archiveCount={chatArchive.length}
+          onPdfLoad={handlePdfLoad}
+          onSave={saveChat}
+          onClear={clearChat}
+          onLogout={onLogout}
+          hasMessages={messages.length > 0}
+          open={sidebarOpen}
+          setOpen={setSidebarOpen}
+        />
+      </div>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 flex flex-col overflow-hidden relative w-full">
 
         {/* Top bar */}
         <div className="flex items-center gap-3 px-6 py-4 border-b"

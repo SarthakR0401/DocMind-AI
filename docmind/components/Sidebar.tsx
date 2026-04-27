@@ -67,7 +67,7 @@ export default function Sidebar({
 
   if (!open) {
     return (
-      <div className="flex flex-col items-center py-5 gap-3 border-r"
+      <div className="hidden md:flex flex-col items-center py-5 gap-3 border-r"
         style={{ width: 60, background: '#FFFFFF', borderColor: '#E4DEFF' }}>
         <button onClick={() => setOpen(true)} className="p-2 rounded-xl transition-colors"
           style={{ color: '#7C3AED' }}
