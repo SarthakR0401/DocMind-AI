@@ -39,7 +39,8 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
     setMessages(prev => [...prev, userMsg]);
 
     try {
-      const res = await fetch("http://localhost:8000/api/chat", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, chunks, history: messages }),

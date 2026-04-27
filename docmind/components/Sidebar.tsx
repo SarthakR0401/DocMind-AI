@@ -39,8 +39,9 @@ export default function Sidebar({
     const formData = new FormData();
     formData.append("file", file);
 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     try {
-      const res = await fetch("http://localhost:8000/api/upload", {
+      const res = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
         body: formData,
       });

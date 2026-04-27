@@ -8,13 +8,17 @@ from chatbot import ask_llm_with_context
 
 app = FastAPI()
 
-# Allow Next.js (localhost:3000) to talk to this server
+# Allow frontend to talk to this server (Updated for Production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+async def root():
+    return {"status": "DocMind Backend is Online"}
 
 # ── 1. PDF Upload ──────────────────────────────────────────────────────────────
 @app.post("/api/upload")
