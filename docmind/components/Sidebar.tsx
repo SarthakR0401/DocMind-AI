@@ -34,30 +34,56 @@ export default function Sidebar({
   const fileRef = useRef<HTMLInputElement>(null)
   const firstName = user.name.split(' ')[0]
 
-  const handleFile = async (file: File | null) => {
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [uploadingSize, setUploadingSize] = useState<string | null>(null)
+
+  const handleFile = (file: File | null) => {
     if (!file) return;
+    
+    // Calculate size
+    const size = file.size > 1024 * 1024 
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
+      : `${(file.size / 1024).toFixed(0)} KB`;
+    setUploadingSize(size);
+    setUploadProgress(0);
+
     const formData = new FormData();
     formData.append("file", file);
 
     const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
-    
-    try {
-      const res = await fetch(`${apiUrl}/api/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(`Server returned ${res.status}: ${errData.detail || 'Unknown error'}`);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${apiUrl}/api/upload`);
+
+    // Track upload progress
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percent);
       }
-      const data = await res.json();
-      const approxWords = data.page_count * 250;
-      onPdfLoad(data.filename, data.page_count, approxWords, data.chunks);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Upload failed!\nStatus: ${err.message}\nURL: ${apiUrl}\n\nTip: If it's a large PDF, it may take a moment on the Free plan.`);
-    }
+    };
+
+    xhr.onload = () => {
+      setUploadProgress(null);
+      setUploadingSize(null);
+      if (xhr.status === 200) {
+        const data = JSON.parse(xhr.responseText);
+        const approxWords = data.page_count * 250;
+        onPdfLoad(data.filename, data.page_count, approxWords, data.chunks);
+      } else {
+        const err = JSON.parse(xhr.responseText || '{}');
+        alert(`Upload failed!\nStatus: ${xhr.status} ${err.detail || 'Internal Server Error'}\nURL: ${apiUrl}`);
+      }
+    };
+
+    xhr.onerror = () => {
+      setUploadProgress(null);
+      setUploadingSize(null);
+      alert("Network error. Could not reach the backend.");
+    };
+
+    xhr.send(formData);
   };
 
   const handleSave = () => {
@@ -180,10 +206,27 @@ export default function Sidebar({
               style={{ background: 'linear-gradient(135deg,#7C3AED,#4338CA)' }}>
               <Upload size={18} className="text-white" />
             </div>
-            <p className="text-xs font-semibold mb-0.5" style={{ color: '#5B21B6' }}>
-              {pdfName ? 'Replace PDF' : 'Upload PDF'}
-            </p>
-            <p className="text-xs" style={{ color: '#B0A8D0' }}>Click or drag & drop</p>
+            {uploadProgress !== null ? (
+              <div className="w-full px-2">
+                <p className="text-xs font-bold mb-2" style={{ color: '#5B21B6' }}>
+                  Uploading ({uploadingSize})...
+                </p>
+                <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: '#EDE9FE' }}>
+                  <div 
+                    className="h-full transition-all duration-300"
+                    style={{ background: '#7C3AED', width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-[10px] mt-1 font-bold" style={{ color: '#B0A8D0' }}>{uploadProgress}%</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs font-semibold mb-0.5" style={{ color: '#5B21B6' }}>
+                  {pdfName ? 'Replace PDF' : 'Upload PDF'}
+                </p>
+                <p className="text-xs" style={{ color: '#B0A8D0' }}>Click or drag & drop</p>
+              </>
+            )}
           </div>
 
           {/* Doc stats */}
