@@ -1,6 +1,7 @@
 name: Cleanup Old Deployments
 
 on:
+  push:
   deployment_status:
 
 permissions:
@@ -9,7 +10,7 @@ permissions:
 
 jobs:
   cleanup:
-    if: github.event.deployment_status.state == 'success'
+    if: github.event_name == 'push' || (github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Delete Old Deployments
