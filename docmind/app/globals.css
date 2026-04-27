@@ -48,6 +48,11 @@ body {
 ::-webkit-scrollbar-thumb { background: #C4B5FD; border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: #A78BFA; }
 
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #DDD6FE; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #C4B5FD; }
+
 /* ── Typography ───────────────────────────────────────────────────── */
 .font-display { font-family: var(--font-playfair); }
 .font-body    { font-family: var(--font-outfit); }

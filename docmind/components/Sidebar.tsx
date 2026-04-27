@@ -111,94 +111,94 @@ export default function Sidebar({
       </div>
 
       <Divider />
-
-      {/* User card */}
-      <div className="mx-4 mb-4 rounded-2xl px-4 py-3.5"
-        style={{ background: 'linear-gradient(135deg,#EDE9FF,#E0F2FE)', border: '1.5px solid #C4B5FD' }}>
-        <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#8080B0' }}>
-          Signed in as
-        </div>
-        <div className="font-bold text-sm mb-0.5" style={{ color: '#0F0A1E' }}>{firstName}</div>
-        <div className="text-xs truncate" style={{ color: '#8080B0' }}>{user.email}</div>
-      </div>
-
-      {/* Navigation */}
-      <SectionLabel text="Navigation" />
-      <div className="mx-4 mb-3 flex flex-col gap-2">
-        {([
-          { icon: MessageSquare, label: 'Chat', key: 'chat' },
-          { icon: Clock,         label: `History${archiveCount ? ` (${archiveCount})` : ''}`, key: 'history' },
-        ] as const).map(({ icon: Icon, label, key }) => (
-          <button key={key}
-            onClick={() => setView(key)}
-            className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-left transition-all duration-150 ${view === key ? 'nav-item-active' : 'nav-item-inactive'}`}>
-            <Icon size={16} />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <Divider className="mx-4" />
-
-      {/* Actions */}
-      <SectionLabel text="Actions" />
-      <div className="mx-4 mb-3 grid grid-cols-2 gap-2">
-        <ActionBtn icon={<Save size={14} />} label="Save" onClick={handleSave} disabled={!hasMessages} />
-        <ActionBtn icon={<Trash2 size={14} />} label="Clear" onClick={onClear} disabled={!hasMessages} variant="danger" />
-      </div>
-
-      {saveToast && (
-        <div className="mx-4 mb-2 rounded-xl px-4 py-2.5 text-sm font-semibold animate-fade-up"
-          style={{ background: '#E0F9F6', border: '1.5px solid #67E8D8', color: '#0E7469' }}>
-          ✅ Chat saved!
-        </div>
-      )}
-
-      <Divider className="mx-4" />
-
-      {/* Document upload */}
-      <SectionLabel text="Document" />
-      <div className="mx-4 mb-3">
-        <input ref={fileRef} type="file" accept=".pdf" className="hidden"
-          onChange={e => handleFile(e.target.files?.[0] || null)} />
-
-        <div
-          className={`upload-zone p-5 text-center cursor-pointer transition-all rounded-2xl${dragging ? ' drag-over' : ''}`}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
-        >
-          <div className="w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,#7C3AED,#4338CA)' }}>
-            <Upload size={18} className="text-white" />
+      
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        {/* User card */}
+        <div className="mx-4 mb-4 rounded-2xl px-4 py-3.5"
+          style={{ background: 'linear-gradient(135deg,#EDE9FF,#E0F2FE)', border: '1.5px solid #C4B5FD' }}>
+          <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#8080B0' }}>
+            Signed in as
           </div>
-          <p className="text-xs font-semibold mb-0.5" style={{ color: '#5B21B6' }}>
-            {pdfName ? 'Replace PDF' : 'Upload PDF'}
-          </p>
-          <p className="text-xs" style={{ color: '#B0A8D0' }}>Click or drag & drop</p>
+          <div className="font-bold text-sm mb-0.5" style={{ color: '#0F0A1E' }}>{firstName}</div>
+          <div className="text-xs truncate" style={{ color: '#8080B0' }}>{user.email}</div>
         </div>
 
-        {/* Doc stats */}
-        {pdfName && (
-          <div className="mt-3 rounded-2xl p-3.5"
-            style={{ background: '#F3EEFF', border: '1.5px solid #C4B5FD' }}>
-            <div className="flex items-center gap-2 mb-2.5">
-              <FileText size={14} style={{ color: '#5B21B6', flexShrink: 0 }} />
-              <span className="text-xs font-bold truncate" style={{ color: '#5B21B6' }}>
-                {pdfName.length > 24 ? pdfName.slice(0, 24) + '…' : pdfName}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <StatMini val={String(pdfPages)} label="Pages" color="#5B21B6" />
-              <StatMini val={fmtNum(wordCount)} label="Words" color="#0EA5E9" />
-            </div>
+        {/* Navigation */}
+        <SectionLabel text="Navigation" />
+        <div className="mx-4 mb-3 flex flex-col gap-2">
+          {([
+            { icon: MessageSquare, label: 'Chat', key: 'chat' },
+            { icon: Clock,         label: `History${archiveCount ? ` (${archiveCount})` : ''}`, key: 'history' },
+          ] as const).map(({ icon: Icon, label, key }) => (
+            <button key={key}
+              onClick={() => setView(key)}
+              className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-left transition-all duration-150 ${view === key ? 'nav-item-active' : 'nav-item-inactive'}`}>
+              <Icon size={16} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <Divider className="mx-4" />
+
+        {/* Actions */}
+        <SectionLabel text="Actions" />
+        <div className="mx-4 mb-3 grid grid-cols-2 gap-2">
+          <ActionBtn icon={<Save size={14} />} label="Save" onClick={handleSave} disabled={!hasMessages} />
+          <ActionBtn icon={<Trash2 size={14} />} label="Clear" onClick={onClear} disabled={!hasMessages} variant="danger" />
+        </div>
+
+        {saveToast && (
+          <div className="mx-4 mb-2 rounded-xl px-4 py-2.5 text-sm font-semibold animate-fade-up"
+            style={{ background: '#E0F9F6', border: '1.5px solid #67E8D8', color: '#0E7469' }}>
+            ✅ Chat saved!
           </div>
         )}
-      </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
+        <Divider className="mx-4" />
+
+        {/* Document upload */}
+        <SectionLabel text="Document" />
+        <div className="mx-4 mb-3">
+          <input ref={fileRef} type="file" accept=".pdf" className="hidden"
+            onChange={e => handleFile(e.target.files?.[0] || null)} />
+
+          <div
+            className={`upload-zone p-5 text-center cursor-pointer transition-all rounded-2xl${dragging ? ' drag-over' : ''}`}
+            onClick={() => fileRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
+          >
+            <div className="w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg,#7C3AED,#4338CA)' }}>
+              <Upload size={18} className="text-white" />
+            </div>
+            <p className="text-xs font-semibold mb-0.5" style={{ color: '#5B21B6' }}>
+              {pdfName ? 'Replace PDF' : 'Upload PDF'}
+            </p>
+            <p className="text-xs" style={{ color: '#B0A8D0' }}>Click or drag & drop</p>
+          </div>
+
+          {/* Doc stats */}
+          {pdfName && (
+            <div className="mt-3 rounded-2xl p-3.5"
+              style={{ background: '#F3EEFF', border: '1.5px solid #C4B5FD' }}>
+              <div className="flex items-center gap-2 mb-2.5">
+                <FileText size={14} style={{ color: '#5B21B6', flexShrink: 0 }} />
+                <span className="text-xs font-bold truncate" style={{ color: '#5B21B6' }}>
+                  {pdfName.length > 24 ? pdfName.slice(0, 24) + '…' : pdfName}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <StatMini val={String(pdfPages)} label="Pages" color="#5B21B6" />
+                <StatMini val={fmtNum(wordCount)} label="Words" color="#0EA5E9" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <Divider className="mx-4" />
 
