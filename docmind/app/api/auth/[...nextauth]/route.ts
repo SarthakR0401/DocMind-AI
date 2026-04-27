@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import fs from "fs"
 import path from "path"
+import { sendWelcomeEmail } from "@/lib/mailer"
 
 const handler = NextAuth({
   providers: [
@@ -16,24 +17,36 @@ const handler = NextAuth({
   events: {
     async signIn({ user, account }) {
       try {
-        // Resolve path to the root 'genai-support-assistant' directory
         const logFile = path.join(process.cwd(), "..", "login_records.csv");
-        
-        // Add CSV header if this is the first login ever recorded
-        if (!fs.existsSync(logFile)) {
-          fs.writeFileSync(logFile, "Timestamp,Email,Name,Provider\n");
-        }
-        
-        // Append user to file
-        const timestamp = new Date().toLocaleString();
         const email = user?.email || "unknown";
         const name = user?.name || "unknown";
         const provider = account?.provider || "unknown";
-        
+        const timestamp = new Date().toLocaleString();
+
+        let isFirstLogin = false;
+
+        // Ensure file exists
+        if (!fs.existsSync(logFile)) {
+          fs.writeFileSync(logFile, "Timestamp,Email,Name,Provider\n");
+          isFirstLogin = true;
+        } else {
+          // Check if email already exists in the records
+          const content = fs.readFileSync(logFile, "utf-8");
+          if (!content.includes(email)) {
+            isFirstLogin = true;
+          }
+        }
+
+        // If it's the first time we see this email, send the welcome email
+        if (isFirstLogin && email !== "unknown") {
+          await sendWelcomeEmail(email, name);
+        }
+
+        // Log the sign-in event
         const logLine = `"${timestamp}","${email}","${name}","${provider}"\n`;
         fs.appendFileSync(logFile, logLine);
       } catch (error) {
-        console.error("Failed to log user sign-in:", error);
+        console.error("Failed to process user sign-in:", error);
       }
     }
   }
