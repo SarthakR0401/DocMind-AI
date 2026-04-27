@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-outfit: 'Outfit', system-ui, sans-serif;
+  --font-jetbrains: 'JetBrains Mono', monospace;
+
+  --bg: #F8F6FF;
+  --surface: #FFFFFF;
+  --border: #E4DEFF;
+  --violet: #5B21B6;
+  --violet2: #7C3AED;
+  --violet3: #6D28D9;
+  --indigo: #4338CA;
+  --sky: #0EA5E9;
+  --teal: #0D9488;
+  --rose: #E11D48;
+  --text: #0F0A1E;
+  --muted: #6B6B99;
+  --radius: 18px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-outfit);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #C4B5FD; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #A78BFA; }
+
+/* ── Typography ───────────────────────────────────────────────────── */
+.font-display { font-family: var(--font-playfair); }
+.font-body    { font-family: var(--font-outfit); }
+.font-mono    { font-family: var(--font-jetbrains); }
+
+/* ── Gradient text ────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #7C3AED, #0EA5E9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Gradient background animated ────────────────────────────────── */
+.grad-bg {
+  background: linear-gradient(145deg, #5B21B6, #4338CA, #0EA5E9, #0D9488);
+  background-size: 300% 300%;
+  animation: gradAnim 7s ease infinite;
+}
+
+@keyframes gradAnim {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 8px 32px rgba(91,33,182,0.32); }
+  50%       { box-shadow: 0 8px 48px rgba(91,33,182,0.58); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%            { transform: translateY(-6px); }
+}
+
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-fade-up { animation: fadeUp 0.6s ease both; }
+.animate-slide-in-left { animation: slideInLeft 0.4s ease both; }
+.animate-pulse-glow { animation: pulseGlow 2.4s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 18s linear infinite; }
+
+/* ── Delay utilities ──────────────────────────────────────────────── */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+
+/* ── Chat bubbles ─────────────────────────────────────────────────── */
+.bubble-user {
+  background: linear-gradient(135deg, #7C3AED, #4338CA);
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 22px 22px 4px 22px;
+  max-width: 72%;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  box-shadow: 0 6px 22px rgba(91,33,182,0.28);
+  word-break: break-word;
+}
+
+.bubble-ai {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  padding: 14px 20px;
+  border-radius: 4px 22px 22px 22px;
+  max-width: 76%;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  box-shadow: 0 3px 16px rgba(91,33,182,0.07);
+  word-break: break-word;
+}
+
+/* ── Markdown styling ─────────────────────────────────────────────── */
+.markdown-body {
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+.markdown-body p {
+  margin-bottom: 0.75rem;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body strong {
+  font-weight: 700;
+  color: #1a1532;
+}
+.markdown-body ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-body ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+.markdown-body pre {
+  background: #110D20;
+  color: #E2E8F0;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-body code {
+  font-family: var(--font-jetbrains);
+  background: #EDE9FF;
+  color: #6D28D9;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.markdown-body pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* ── Typing dots ──────────────────────────────────────────────────── */
+.typing-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #C4B5FD;
+  display: inline-block;
+  animation: typing 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ── Sidebar active nav ───────────────────────────────────────────── */
+.nav-item-active {
+  background: linear-gradient(135deg, #7C3AED, #4338CA);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(91,33,182,0.30);
+}
+.nav-item-inactive {
+  background: #F3EEFF;
+  color: #5B21B6;
+  border: 1.5px solid #DDD6FE;
+}
+.nav-item-inactive:hover {
+  background: #EDE9FE;
+  border-color: #C4B5FD;
+}
+
+/* ── File uploader zone ───────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed #C4B5FD;
+  border-radius: 14px;
+  background: #F5F0FF;
+  transition: all 0.2s;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: #7C3AED;
+  background: #EDE9FE;
+}
+
+/* ── Page fade-in ─────────────────────────────────────────────────── */
+.page-enter {
+  animation: fadeUp 0.4s ease both;
+}
