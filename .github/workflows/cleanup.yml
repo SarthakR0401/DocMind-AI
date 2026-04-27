@@ -3,6 +3,10 @@ name: Cleanup Old Deployments
 on:
   deployment_status:
 
+permissions:
+  deployments: write
+  contents: read
+
 jobs:
   cleanup:
     if: github.event.deployment_status.state == 'success'
