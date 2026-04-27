@@ -16,13 +16,13 @@ def load_pdf(file) -> tuple[str, int]:
                 if extracted:
                     text += extracted + "\n"
         
-        # 2. If text is empty, it's likely a scan. Use OCR Fallback.
+            # 2. If text is empty, it's likely a scan. Use OCR Fallback.
         if not text.strip():
             print("Detected image-based PDF. Triggering OCR.space API...")
-            file.seek(0) # Reset file pointer
+            file.seek(0)
             payload = {
                 'isOverlayRequired': False,
-                'apikey': 'helloworld', # Default free key
+                'apikey': 'helloworld',
                 'language': 'eng',
                 'isTable': True,
             }
@@ -31,14 +31,18 @@ def load_pdf(file) -> tuple[str, int]:
                              data=payload)
             result = res.json()
             
-            if result['OCRExitCode'] == 1:
+            # DEBUG: Print the actual API result to the Render logs
+            print(f"OCR API Result: {result}")
+            
+            if result.get('OCRExitCode') == 1:
                 parsed_text = ""
-                for page in result['ParsedResults']:
-                    parsed_text += page['ParsedText'] + "\n"
+                for page in result.get('ParsedResults', []):
+                    parsed_text += page.get('ParsedText', '') + "\n"
                 text = parsed_text
                 print(f"OCR Success! Extracted {len(text)} characters.")
             else:
-                print(f"OCR Failed: {result.get('ErrorMessage')}")
+                error_msg = result.get('ErrorMessage', 'Unknown API Error')
+                print(f"OCR Failed: {error_msg}")
 
         return text, page_count
     except Exception as e:
