@@ -227,8 +227,8 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
             <div key={i} className="animate-fade-up">
               {msg.role === 'user' ? (
                 <div className="flex justify-end">
-                  <div>
-                    <div className="bubble-user">{msg.content}</div>
+                  <div className="max-w-[85%] md:max-w-[70%] min-w-[60px]">
+                    <div className="bubble-user break-words">{msg.content}</div>
                     <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
                   </div>
                 </div>
