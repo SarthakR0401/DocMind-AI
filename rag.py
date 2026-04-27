@@ -1,22 +1,48 @@
 import pdfplumber
+import requests
+import io
 
 def load_pdf(file) -> tuple[str, int]:
     """
-    Extract text from a PDF file using pdfplumber for better reliability.
-    Returns (full_text, page_count).
+    Extract text from a PDF. If it's a scan (no text), it uses OCR.space API as a fallback.
     """
     try:
         text = ""
-        page_count = 0
+        # 1. Try standard extraction first (fast & free)
         with pdfplumber.open(file) as pdf:
             page_count = len(pdf.pages)
             for page in pdf.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
+        
+        # 2. If text is empty, it's likely a scan. Use OCR Fallback.
+        if not text.strip():
+            print("Detected image-based PDF. Triggering OCR.space API...")
+            file.seek(0) # Reset file pointer
+            payload = {
+                'isOverlayRequired': False,
+                'apikey': 'helloworld', # Default free key
+                'language': 'eng',
+                'isTable': True,
+            }
+            res = requests.post('https://api.ocr.space/parse/image',
+                             files={'filename': ('file.pdf', file)},
+                             data=payload)
+            result = res.json()
+            
+            if result['OCRExitCode'] == 1:
+                parsed_text = ""
+                for page in result['ParsedResults']:
+                    parsed_text += page['ParsedText'] + "\n"
+                text = parsed_text
+                print(f"OCR Success! Extracted {len(text)} characters.")
+            else:
+                print(f"OCR Failed: {result.get('ErrorMessage')}")
+
         return text, page_count
     except Exception as e:
-        print(f"Error reading PDF: {e}")
+        print(f"Capture Error: {e}")
         return "", 0
 
 
