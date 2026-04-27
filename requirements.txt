@@ -1,0 +1,6 @@
+groq
+streamlit>=1.42.0
+authlib>=1.3.2
+PyPDF2
+
+# API KEY GROQ = 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
