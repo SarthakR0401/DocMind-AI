@@ -27,7 +27,7 @@ def load_pdf(file) -> tuple[str, int]:
                 'isTable': True,
             }
             res = requests.post('https://api.ocr.space/parse/image',
-                             files={'filename': ('file.pdf', file)},
+                             files={'file': ('file.pdf', file)},
                              data=payload)
             result = res.json()
             
