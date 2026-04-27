@@ -47,14 +47,16 @@ export default function Sidebar({
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(`Server returned ${res.status}: ${errData.detail || 'Unknown error'}`);
+      }
       const data = await res.json();
-      // data = { chunks, page_count, filename }
       const approxWords = data.page_count * 250;
       onPdfLoad(data.filename, data.page_count, approxWords, data.chunks);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert(`Upload failed. (Targeting: ${apiUrl}). Ensure your NEXT_PUBLIC_API_URL is correct on Render.`);
+      alert(`Upload failed!\nStatus: ${err.message}\nURL: ${apiUrl}\n\nTip: If it's a large PDF, it may take a moment on the Free plan.`);
     }
   };
 
