@@ -52,7 +52,7 @@ export default function Sidebar({
       onPdfLoad(data.filename, data.page_count, approxWords, data.chunks);
     } catch (err) {
       console.error(err);
-      alert("Error uploading file. Make sure the backend is running on port 8000.");
+      alert(`Upload failed. (Targeting: ${apiUrl}). Ensure your NEXT_PUBLIC_API_URL is correct on Render.`);
     }
   };
 
