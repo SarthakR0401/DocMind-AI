@@ -1,0 +1,44 @@
+name: Cleanup Old Deployments
+
+on:
+  deployment_status:
+
+jobs:
+  cleanup:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Old Deployments
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            
+            // 1. Get all deployments
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner,
+              repo,
+            });
+            
+            // 2. Sort by ID (usually chronological) and keep the newest one
+            const oldDeployments = deployments
+              .sort((a, b) => b.id - a.id)
+              .slice(1);
+              
+            console.log(`Found ${oldDeployments.length} old deployments to delete.`);
+            
+            // 3. Delete them
+            for (const deployment of oldDeployments) {
+              try {
+                // We need to set the status to 'inactive' or similar if needed, 
+                // but direct deletion is usually enough for the UI list.
+                await github.rest.repos.deleteDeployment({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                });
+                console.log(`Deleted deployment ${deployment.id}`);
+              } catch (e) {
+                console.log(`Failed to delete ${deployment.id}: ${e.message}`);
+              }
+            }
