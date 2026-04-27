@@ -100,6 +100,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
       {/* Sidebar - Adaptive Positioning */}
       <div className={`
         fixed inset-y-0 left-0 z-50 md:relative md:z-auto transition-transform duration-300
+        flex flex-col h-full
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <Sidebar
