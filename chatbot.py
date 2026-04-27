@@ -1,11 +1,13 @@
+import os
 import time
 import groq as groq_sdk
 from rag import get_context
+from dotenv import load_dotenv
 
-# ── Groq setup ────────────────────────────────────────────────────────────────
-# FREE API — no credit card, no quota issues!
-# Get your key at: https://console.groq.com  (sign up → API Keys → Create)
-GROQ_API_KEY = "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"   # ← paste your Groq key here
+load_dotenv()
+
+# Use the key from the environment variable if possible, otherwise use the previous hardcoded key
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 
 _client = groq_sdk.Groq(api_key=GROQ_API_KEY)
 
@@ -21,17 +23,6 @@ def ask_llm_with_context(
 ) -> str:
     """
     Answer a user question using RAG-retrieved document context via Groq.
-
-    Parameters
-    ----------
-    user_input : str   — the current user question
-    chunks     : list  — all text chunks from the uploaded PDF
-    history    : list  — previous turns [{"role": "user"|"assistant", "content": str}]
-    retries    : int   — auto-retry on rate-limit (429) errors
-
-    Returns
-    -------
-    str — the assistant's answer
     """
     if history is None:
         history = []
@@ -53,7 +44,7 @@ def ask_llm_with_context(
         messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": user_input})
 
-    # ── Auto-retry on 429 rate-limit errors ───────────────────────────────────
+    # Auto-retry on 429 rate-limit errors
     for attempt in range(retries):
         try:
             response = _client.chat.completions.create(
