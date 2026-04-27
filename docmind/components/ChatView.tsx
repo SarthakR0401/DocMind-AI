@@ -206,9 +206,10 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
 
   // ── Active chat ────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-y-auto px-6 pt-6 pb-4 max-w-4xl w-full mx-auto">
-        <div className="space-y-5">
+    <div className="h-full flex flex-col bg-[#F8F6FF]">
+      {/* Messages - Scrollable Area */}
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
+        <div className="space-y-5 pb-10">
           {messages.map((msg, i) => (
             <div key={i} className="animate-fade-up">
               {msg.role === 'user' ? (
@@ -274,36 +275,28 @@ const InputBar = React.forwardRef<HTMLTextAreaElement, {
   loading: boolean
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
 }>(({ input, setInput, onSubmit, loading, onKeyDown }, ref) => (
-  <div className="px-6 pb-5 pt-3 max-w-4xl w-full mx-auto">
-    <div className="flex gap-3 items-end rounded-2xl p-3"
-      style={{ background: '#FFFFFF', border: '2px solid #E4DEFF', boxShadow: '0 4px 20px rgba(91,33,182,0.08)' }}>
+  <div className="p-4 safe-bottom">
+    <div className="max-w-4xl mx-auto relative group">
       <textarea
         ref={ref}
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={onKeyDown}
         rows={1}
-        placeholder="Ask anything about your document…  (Enter to send, Shift+Enter for newline)"
-        className="flex-1 resize-none text-sm outline-none bg-transparent leading-relaxed"
-        style={{
-          color: '#0F0A1E',
-          fontFamily: 'var(--font-outfit)',
-          maxHeight: 120,
-          minHeight: 24,
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder="Ask DocMind anything..."
+        className="w-full pl-6 pr-14 py-4 bg-white border-2 border-transparent focus:border-[#7C3AED] rounded-2xl shadow-xl focus:outline-none resize-none transition-all duration-300 text-[15px]"
+        style={{ 
+          boxShadow: '0 10px 25px -5px rgba(124, 58, 237, 0.1), 0 8px 10px -6px rgba(124, 58, 237, 0.1)'
         }}
       />
       <button
         onClick={onSubmit}
         disabled={loading || !input.trim()}
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{
-          background: 'linear-gradient(135deg,#7C3AED,#4338CA)',
-          boxShadow: '0 4px 14px rgba(91,33,182,0.28)',
-          color: '#fff',
-        }}>
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-[#7C3AED] text-white hover:bg-[#6D28D9] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg active:scale-95"
+      >
         {loading
           ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          : <Send size={16} />}
+          : <Send size={18} />}
       </button>
     </div>
     <p className="text-center mt-2 text-xs" style={{ color: '#B0A8D0' }}>
