@@ -36,7 +36,7 @@ Create a `.env.local` inside the `docmind/` directory:
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-secret"
 NEXTAUTH_SECRET="any-random-string"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="https://docminds-ai.vercel.app/"
 ```
 
 ### 2. Start the Backend

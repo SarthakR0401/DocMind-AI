@@ -1,0 +1,38 @@
+name: Autonomous Project Upgrades
+
+on:
+  schedule:
+    - cron: '30 4 * * *' # 10:00 AM IST
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pdfplumber numpy scikit-learn
+
+      - name: Run Autonomous Developer Script
+        run: python scripts/autonomous_developer.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name 'Antigravity-AI'
+          git config --global user.email 'ai-developer@antigravity.internal'
+          git add .
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Autonomous Upgrade: Applied scheduled feature updates" && git push)

@@ -53,17 +53,46 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
       });
       
       if (!res.ok) throw new Error("API failed");
-      const data = await res.json();
-      const localTs = new Date().toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit', 
-        hour12: true 
-      });
-      setMessages(prev => [...prev, { role: "assistant", content: data.answer, ts: localTs }]);
+
+      // Initialize the assistant message
+      const aiMsg: Message = { 
+        role: "assistant", 
+        content: "", 
+        ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) 
+      };
+      setMessages(prev => [...prev, aiMsg]);
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      if (reader) {
+        setLoading(false); // Stop loading indicator once stream starts
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          fullContent += chunk;
+          
+          // Update the last message (the assistant one) with new content
+          setMessages(prev => {
+            const newMsgs = [...prev];
+            const last = newMsgs[newMsgs.length - 1];
+            if (last && last.role === 'assistant') {
+              last.content = fullContent;
+            }
+            return newMsgs;
+          });
+        }
+      }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, there was an error communicating with the server.", ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) }]);
-    } finally {
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "Sorry, there was an error communicating with the server.", 
+        ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) 
+      }]);
       setLoading(false);
     }
   };

@@ -15,19 +15,17 @@ _client = groq_sdk.Groq(api_key=GROQ_API_KEY)
 MODEL = "llama-3.3-70b-versatile"
 
 
-def ask_llm_with_context(
+def stream_llm_with_context(
     user_input: str,
     chunks: list[str],
     history: list[dict] | None = None,
-    retries: int = 3,
-) -> str:
+):
     """
-    Answer a user question using RAG-retrieved document context via Groq.
+    Generator that yields chunks of the AI response in real-time.
     """
     if history is None:
         history = []
 
-    # Retrieve the most relevant chunks from the document
     context = get_context(user_input, chunks)
 
     system_prompt = (
@@ -40,33 +38,22 @@ def ask_llm_with_context(
         f"--- DOCUMENT CONTEXT ---\n{context}\n--- END CONTEXT ---"
     )
 
-    # Build messages: system + history + current question
     messages = [{"role": "system", "content": system_prompt}]
     for turn in history:
         messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": user_input})
 
-    # Auto-retry on 429 rate-limit errors
-    for attempt in range(retries):
-        try:
-            response = _client.chat.completions.create(
-                model=MODEL,
-                messages=messages,
-                max_tokens=1024,
-                temperature=0.3,
-            )
-            return response.choices[0].message.content
+    try:
+        completion = _client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            max_tokens=1024,
+            temperature=0.3,
+            stream=True,
+        )
+        for chunk in completion:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
 
-        except groq_sdk.RateLimitError as e:
-            # Extract retry-after from error if available, else use backoff
-            wait = 10 * (attempt + 1)
-            if attempt < retries - 1:
-                time.sleep(wait)
-            else:
-                return (
-                    f"⚠️ Rate limit reached. Please wait a moment and try again.\n"
-                    f"_(Groq free tier: resets every minute)_"
-                )
-
-        except groq_sdk.APIError as e:
-            return f"⚠️ API error: {str(e)}"
+    except Exception as e:
+        yield f"⚠️ Error: {str(e)}"

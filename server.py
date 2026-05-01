@@ -2,10 +2,11 @@
 import datetime
 import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from rag import load_pdf, chunk_text
-from chatbot import ask_llm_with_context
+from chatbot import stream_llm_with_context
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -56,8 +57,10 @@ class ChatRequest(BaseModel):
 async def chat(req: ChatRequest):
     logger.info(f"💬 Chat request: {req.question[:50]}...")
     try:
-        answer = ask_llm_with_context(req.question, req.chunks, req.history)
-        return {"answer": answer, "ts": datetime.datetime.now().strftime("%I:%M %p")}
+        return StreamingResponse(
+            stream_llm_with_context(req.question, req.chunks, req.history),
+            media_type="text/plain"
+        )
     except Exception as e:
         logger.error(f"🚨 Chat error: {str(e)}")
         raise HTTPException(500, f"AI logic failed: {str(e)}")
