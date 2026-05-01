@@ -4,8 +4,8 @@ import groq as groq_sdk
 from rag import get_context
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (force override to use new key)
+load_dotenv(override=True)
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
