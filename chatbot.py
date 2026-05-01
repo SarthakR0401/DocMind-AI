@@ -4,10 +4,14 @@ import groq as groq_sdk
 from rag import get_context
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
 
-# Use the key from the environment variable if possible, otherwise use the previous hardcoded key
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+
+if not GROQ_API_KEY:
+    # Fallback to a warning message instead of a broken key
+    print("⚠️ WARNING: GROQ_API_KEY not found in environment variables.")
 
 _client = groq_sdk.Groq(api_key=GROQ_API_KEY)
 
