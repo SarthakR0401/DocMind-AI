@@ -4,4 +4,6 @@ pdfplumber
 fastapi
 uvicorn
 python-multipart
-requests\nscikit-learn\nnumpy
+requests
+scikit-learn
+numpy

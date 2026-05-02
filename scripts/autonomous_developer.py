@@ -82,7 +82,8 @@ def get_context(query: str, chunks: list[str], top_k: int = 4) -> str:
     # Update requirements
     req_path = os.path.join(PROJECT_ROOT, "requirements.txt")
     with open(req_path, "a") as f:
-        f.write("\\nscikit-learn\\nnumpy")
+        f.write("\nscikit-learn\nnumpy")
+
     
     print("✅ RAG Upgrade Complete.")
 
