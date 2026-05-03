@@ -14,7 +14,7 @@ interface ChatViewProps {
   firstName: string
 }
 
-export default function ChatView({ messages, setMessages, chunks, pdfName, firstName }: ChatViewProps) {
+export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUrl, firstName }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
@@ -277,66 +277,67 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
         <div className={`flex flex-col h-full overflow-hidden ${showPreview ? 'w-full md:w-1/2' : 'w-full'}`}>
           {/* Messages - Scrollable Area */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
-        <div className="space-y-5 pb-10">
-          {/* Start Date Badge */}
-          <div className="flex justify-center mb-8">
-            <span className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest"
-              style={{ background: '#FFFFFF', border: '1.2px solid #E4DEFF', color: '#8080B0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              Conversation started on {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-          </div>
+            <div className="space-y-5 pb-10">
+              {/* Start Date Badge */}
+              <div className="flex justify-center mb-8">
+                <span className="px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest"
+                  style={{ background: '#FFFFFF', border: '1.2px solid #E4DEFF', color: '#8080B0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                  Conversation started on {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
 
-          {messages.map((msg, i) => (
-            <div key={i} className="animate-fade-up">
-              {msg.role === 'user' ? (
-                <div className="flex justify-end">
-                  <div className="max-w-[85%] md:max-w-[70%] min-w-[60px]">
-                    <div className="bubble-user break-words">{msg.content}</div>
-                    <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
-                  </div>
+              {messages.map((msg, i) => (
+                <div key={i} className="animate-fade-up">
+                  {msg.role === 'user' ? (
+                    <div className="flex justify-end">
+                      <div className="max-w-[85%] md:max-w-[70%] min-w-[60px]">
+                        <div className="bubble-user break-words">{msg.content}</div>
+                        <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                        style={{ background: 'linear-gradient(135deg,#7C3AED,#0EA5E9)', boxShadow: '0 4px 14px rgba(91,33,182,0.28)' }}>
+                        🧠
+                      </div>
+                      <div>
+                        <div className="bubble-ai markdown-body">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
+                            style={{ background: '#EDE9FF', border: '1px solid #C4B5FD', color: '#5B21B6', fontSize: '0.62rem' }}>
+                            from doc
+                          </span>
+                          <span className="text-xs" style={{ color: '#B0A8D0' }}>{msg.ts}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex items-start gap-3">
+              ))}
+
+              {/* Typing indicator */}
+              {loading && (
+                <div className="flex items-start gap-3 animate-fade-up">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
                     style={{ background: 'linear-gradient(135deg,#7C3AED,#0EA5E9)', boxShadow: '0 4px 14px rgba(91,33,182,0.28)' }}>
                     🧠
                   </div>
-                  <div>
-                    <div className="bubble-ai markdown-body">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
-                        style={{ background: '#EDE9FF', border: '1px solid #C4B5FD', color: '#5B21B6', fontSize: '0.62rem' }}>
-                        from doc
-                      </span>
-                      <span className="text-xs" style={{ color: '#B0A8D0' }}>{msg.ts}</span>
-                    </div>
+                  <div className="bubble-ai flex items-center gap-1.5 py-3.5">
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
                   </div>
                 </div>
               )}
+              <div ref={bottomRef} />
             </div>
-          ))}
+          </div>
 
-          {/* Typing indicator */}
-          {loading && (
-            <div className="flex items-start gap-3 animate-fade-up">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
-                style={{ background: 'linear-gradient(135deg,#7C3AED,#0EA5E9)', boxShadow: '0 4px 14px rgba(91,33,182,0.28)' }}>
-                🧠
-              </div>
-              <div className="bubble-ai flex items-center gap-1.5 py-3.5">
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
+          <InputBar input={input} setInput={setInput} onSubmit={handleSubmit} loading={loading} onKeyDown={onKeyDown} ref={textareaRef} />
         </div>
-      </div>
-
-      <InputBar input={input} setInput={setInput} onSubmit={handleSubmit} loading={loading} onKeyDown={onKeyDown} ref={textareaRef} />
       </div>
     </div>
   )
