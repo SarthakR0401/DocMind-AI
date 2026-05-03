@@ -33,6 +33,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [chunks, setChunks] = useState<string[]>([])
   const [pdfName, setPdfName] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfPages, setPdfPages] = useState(0)
   const [wordCount, setWordCount] = useState(0)
   const [chatArchive, setChatArchive] = useState<ChatSession[]>([])
@@ -59,9 +60,10 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     setMessages([])
   }
 
-  const handlePdfLoad = (name: string, pages: number, words: number, textChunks: string[]) => {
+  const handlePdfLoad = (name: string, pages: number, words: number, textChunks: string[], url: string) => {
     saveChat()
     setPdfName(name)
+    setPdfUrl(url)
     setPdfPages(pages)
     setWordCount(words)
     setChunks(textChunks)
@@ -179,6 +181,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
               setMessages={setMessages}
               chunks={chunks}
               pdfName={pdfName}
+              pdfUrl={pdfUrl}
               firstName={firstName}
             />
           )}

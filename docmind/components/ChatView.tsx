@@ -10,12 +10,14 @@ interface ChatViewProps {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   chunks: string[]
   pdfName: string | null
+  pdfUrl: string | null
   firstName: string
 }
 
 export default function ChatView({ messages, setMessages, chunks, pdfName, firstName }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPreview, setShowPreview] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -241,8 +243,40 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
   // ── Active chat ────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col bg-[#F8F6FF]">
-      {/* Messages - Scrollable Area */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
+      {/* View Toggle Bar */}
+      <div className="px-6 py-2 flex justify-end border-b" style={{ borderColor: '#EDE9FF', background: '#FFFFFF' }}>
+        <button
+          onClick={() => setShowPreview(!showPreview)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+          style={{ 
+            background: showPreview ? '#EDE9FF' : '#F3EEFF', 
+            color: '#7C3AED',
+            border: '1px solid #C4B5FD'
+          }}
+        >
+          {showPreview ? '📖 Hide Preview' : '📘 Show Preview'}
+        </button>
+      </div>
+
+      <div className={`flex-1 flex overflow-hidden ${showPreview ? 'flex-row' : 'flex-col'}`}>
+        
+        {/* PDF Previewer Pane */}
+        {showPreview && pdfUrl && (
+          <div className="hidden md:block w-1/2 h-full border-r bg-white p-4" style={{ borderColor: '#E4DEFF' }}>
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 shadow-inner" style={{ borderColor: '#EDE9FF' }}>
+              <iframe 
+                src={`${pdfUrl}#toolbar=0&navpanes=0`} 
+                className="w-full h-full"
+                title="PDF Preview"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Chat Pane */}
+        <div className={`flex flex-col h-full overflow-hidden ${showPreview ? 'w-full md:w-1/2' : 'w-full'}`}>
+          {/* Messages - Scrollable Area */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
         <div className="space-y-5 pb-10">
           {/* Start Date Badge */}
           <div className="flex justify-center mb-8">
@@ -303,6 +337,7 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, first
       </div>
 
       <InputBar input={input} setInput={setInput} onSubmit={handleSubmit} loading={loading} onKeyDown={onKeyDown} ref={textareaRef} />
+      </div>
     </div>
   )
 }

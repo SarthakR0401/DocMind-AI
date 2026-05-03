@@ -12,7 +12,7 @@ interface SidebarProps {
   pdfPages: number
   wordCount: number
   archiveCount: number
-  onPdfLoad: (name: string, pages: number, words: number, chunks: string[]) => void
+  onPdfLoad: (name: string, pages: number, words: number, chunks: string[], url: string) => void
   onSave: () => void
   onClear: () => void
   onLogout: () => void
@@ -70,7 +70,8 @@ export default function Sidebar({
       if (xhr.status === 200) {
         const data = JSON.parse(xhr.responseText);
         const approxWords = data.page_count * 250;
-        onPdfLoad(data.filename, data.page_count, approxWords, data.chunks);
+        const url = URL.createObjectURL(file);
+        onPdfLoad(data.filename, data.page_count, approxWords, data.chunks, url);
       } else {
         const err = JSON.parse(xhr.responseText || '{}');
         alert(`Upload failed!\nStatus: ${xhr.status} ${err.detail || 'Internal Server Error'}\nURL: ${apiUrl}`);
