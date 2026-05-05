@@ -7,6 +7,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
+from pymongo import MongoClient
 from rag import load_pdf, chunk_text
 from chatbot import stream_llm_with_context
 
@@ -16,17 +17,17 @@ logger = logging.getLogger("DocMind")
 
 app = FastAPI(title="DocMind AI Backend")
 
-USER_DB = "users.json"
-
-def load_users():
-    if not os.path.exists(USER_DB):
-        return {}
-    with open(USER_DB, "r") as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(USER_DB, "w") as f:
-        json.dump(users, f)
+# MongoDB Configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+try:
+    client = MongoClient(MONGO_URI)
+    db = client["docmind_db"]
+    users_col = db["users"]
+    # Check connection
+    client.admin.command('ping')
+    logger.info("Successfully connected to MongoDB")
+except Exception as e:
+    logger.error(f"Could not connect to MongoDB: {e}")
 
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
@@ -41,16 +42,17 @@ async def signup(req: AuthRequest):
     if not is_valid_email(req.email):
         raise HTTPException(400, "Invalid email format")
     
-    users = load_users()
-    # Allowing update/upsert for this demo to ensure setup always works
-    users[req.email] = {"password": req.password, "name": req.name}
-    save_users(users)
+    # Upsert logic to support profile completion
+    users_col.update_one(
+        {"email": req.email},
+        {"$set": {"password": req.password, "name": req.name}},
+        upsert=True
+    )
     return {"message": "Account created/updated successfully"}
 
 @app.post("/api/auth/login")
 async def login(req: AuthRequest):
-    users = load_users()
-    user = users.get(req.email)
+    user = users_col.find_one({"email": req.email})
     if not user or user["password"] != req.password:
         raise HTTPException(401, "Invalid credentials")
     

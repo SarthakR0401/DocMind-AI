@@ -6,4 +6,6 @@ uvicorn
 python-multipart
 requests
 scikit-learn
-numpy
+numpy
+pymongo
+dnspython
