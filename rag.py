@@ -1,36 +1,33 @@
 import fitz  # PyMuPDF
-import requests
+import pytesseract
+from PIL import Image
 import io
 import numpy as np
 
-def load_pdf(file) -> tuple[str, int]:
+def load_pdf(file_obj) -> tuple[str, int]:
     try:
-        text = ""
-        # Read file bytes for fitz
-        file_bytes = file.read()
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
-        page_count = len(doc)
-        
+        # If it's bytes, wrap in io.BytesIO
+        if isinstance(file_obj, bytes):
+            file_obj = io.BytesIO(file_obj)
+        elif hasattr(file_obj, "read"):
+            # Ensure we are reading from a fresh stream
+            file_obj = io.BytesIO(file_obj.read())
+
+        doc = fitz.open(stream=file_obj, filetype="pdf")
+        full_text = ""
         for page in doc:
-            text += page.get_text() + "\n"
+            text = page.get_text()
+            # If no digital text, use OCR to handle images/handwriting
+            if not text.strip():
+                pix = page.get_pixmap()
+                img = Image.open(io.BytesIO(pix.tobytes()))
+                text = pytesseract.image_to_string(img)
+            
+            full_text += text + "\n"
         
+        page_count = len(doc)
         doc.close()
-        
-        if not text.strip():
-            print("Detected image-based PDF. Triggering OCR.space API...")
-            # Seek back to 0 if needed, but we already read bytes. 
-            # Re-creating a BytesIO for the OCR request.
-            file_stream = io.BytesIO(file_bytes)
-            payload = {'isOverlayRequired': False, 'apikey': 'helloworld', 'language': 'eng', 'isTable': True}
-            res = requests.post('https://api.ocr.space/parse/image', files={'file': ('file.pdf', file_stream)}, data=payload)
-            result = res.json()
-            exit_code = result.get('OCRExitCode')
-            if exit_code in [1, 2, 4]:
-                parsed_text = ""
-                for page in result.get('ParsedResults', []):
-                    parsed_text += page.get('ParsedText', '') + "\n"
-                text = parsed_text
-        return text, page_count
+        return full_text, page_count
     except Exception as e:
         print(f"Capture Error: {e}")
         return "", 0
