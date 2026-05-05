@@ -50,10 +50,10 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     
     // Check if user needs setup (simple local check for demo)
     const isSetupDone = localStorage.getItem(`setup-done-${user.email}`)
-    if (!isSetupDone && user.name === 'User') {
+    if (!isSetupDone) {
       setShowSetup(true)
     }
-  }, [user.email, user.name])
+  }, [user.email])
 
   useEffect(() => {
     localStorage.setItem('docmind-theme', isDark ? 'dark' : 'light')
