@@ -1,6 +1,5 @@
 import fitz  # PyMuPDF
-import pytesseract
-from PIL import Image
+import requests
 import io
 import numpy as np
 
@@ -10,18 +9,30 @@ def load_pdf(file_obj) -> tuple[str, int]:
         if isinstance(file_obj, bytes):
             file_obj = io.BytesIO(file_obj)
         elif hasattr(file_obj, "read"):
-            # Ensure we are reading from a fresh stream
             file_obj = io.BytesIO(file_obj.read())
 
         doc = fitz.open(stream=file_obj, filetype="pdf")
         full_text = ""
         for page in doc:
             text = page.get_text()
-            # If no digital text, use OCR to handle images/handwriting
+            # If no digital text, use Cloud OCR
             if not text.strip():
                 pix = page.get_pixmap()
-                img = Image.open(io.BytesIO(pix.tobytes()))
-                text = pytesseract.image_to_string(img)
+                img_bytes = pix.tobytes("png")
+                
+                # Call OCR.space Free API
+                payload = {
+                    'apikey': 'helloworld', # Free API Key
+                    'language': 'eng',
+                }
+                res = requests.post(
+                    'https://api.ocr.space/parse/image',
+                    files={'filename': ('page.png', img_bytes)},
+                    data=payload
+                )
+                result = res.json()
+                if result.get('ParsedResults'):
+                    text = result['ParsedResults'][0].get('ParsedText', '')
             
             full_text += text + "\n"
         
