@@ -73,9 +73,16 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   }, [user.email])
 
   useEffect(() => {
-    localStorage.setItem('docmind-theme', isDark ? 'dark' : 'light')
-  }, [isDark])
-
+    const handleToggle = () => setSidebarOpen(prev => !prev)
+    window.addEventListener('toggle-sidebar', handleToggle)
+    
+    const checkMobile = () => {
+      if (window.innerWidth < 768) setSidebarOpen(false)
+    }
+    checkMobile()
+    
+    return () => window.removeEventListener('toggle-sidebar', handleToggle)
+  }, [])
 
   const firstName = user.name.split(' ')[0]
 
@@ -164,8 +171,8 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden relative w-full">
 
-        {/* Top bar */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b"
+        {/* Top bar (Desktop Only) */}
+        <div className="hidden md:flex items-center gap-3 px-6 py-4 border-b"
           style={{ borderColor: 'var(--border)', background: 'var(--surface)', opacity: 0.95, backdropFilter: 'blur(12px)' }}>
 
           <button

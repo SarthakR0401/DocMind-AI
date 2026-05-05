@@ -243,18 +243,37 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
   // ── Active chat ────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]">
-      {/* View Toggle Bar */}
-      <div className="px-6 py-2 flex justify-end border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      {/* View Toggle Bar / Mobile Header */}
+      <div className="px-4 py-2 flex items-center justify-between border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+        <button
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('toggle-sidebar'))
+          }}
+          className="md:hidden p-2 rounded-lg text-[#7C3AED]"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+
+        <div className="flex-1 text-center md:text-left px-2">
+          <h1 className="text-[11px] font-bold uppercase tracking-wider truncate max-w-[150px] md:max-w-none" style={{ color: 'var(--text)' }}>
+            {pdfName || 'DocMind AI'}
+          </h1>
+        </div>
+
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
           style={{ 
             background: showPreview ? '#EDE9FF' : '#F3EEFF', 
             color: '#7C3AED',
             border: '1px solid #C4B5FD'
           }}
         >
-          {showPreview ? '📖 Hide Preview' : '📘 Show Preview'}
+          {showPreview ? '📖 Hide' : '📘 Show'}
         </button>
       </div>
 

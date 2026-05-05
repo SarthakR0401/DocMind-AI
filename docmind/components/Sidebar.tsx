@@ -121,8 +121,17 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="flex flex-col border-r overflow-hidden transition-all duration-300"
-      style={{ width: 272, minWidth: 272, background: 'var(--surface)', borderColor: 'var(--border)' }}>
+    <>
+      {/* Mobile Overlay */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden animate-fade-in"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      <aside className={`fixed md:relative inset-y-0 left-0 z-50 flex flex-col border-r overflow-hidden transition-all duration-300 transform ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${!open ? 'md:hidden' : ''}`}
+        style={{ width: 272, minWidth: 272, background: 'var(--surface)', borderColor: 'var(--border)' }}>
 
       {/* Brand */}
       <div className="flex items-center justify-between px-6 pt-6 pb-5">
