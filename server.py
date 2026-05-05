@@ -31,14 +31,14 @@ app.add_middleware(
 )
 
 # MongoDB Configuration
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = "mongodb+srv://sarthakrathi04_db_user:Sarthak%4004@docmindai.yl74upm.mongodb.net/?appName=DocMindAI"
 try:
     client = MongoClient(MONGO_URI)
     db = client["docmind_db"]
     users_col = db["users"]
     # Check connection
     client.admin.command('ping')
-    logger.info("Successfully connected to MongoDB")
+    logger.info("Successfully connected to MongoDB Atlas")
 except Exception as e:
     logger.error(f"Could not connect to MongoDB: {e}")
 
