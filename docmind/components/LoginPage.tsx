@@ -37,11 +37,13 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        alert(isSignUp ? 'Signup successful! Please login.' : 'Login successful!')
-        if (isSignUp) setIsSignUp(false)
-        else {
-          // Manually trigger session update or redirect
-          window.location.reload()
+        if (isSignUp) {
+          alert('Signup successful! Please login.')
+          setIsSignUp(false)
+        } else {
+          alert('Login successful!')
+          // Redirect to home page
+          window.location.href = '/'
         }
       } else {
         alert(data.detail || 'Authentication failed')
