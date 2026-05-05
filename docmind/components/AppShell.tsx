@@ -53,16 +53,23 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
       try {
         const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
-        const res = await fetch(`${apiUrl}/api/auth/status/${user.email}`)
+        
+        console.log(`Checking status for ${user.email} at ${apiUrl}`);
+        
+        const res = await fetch(`${apiUrl}/api/auth/status/${encodeURIComponent(user.email)}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
         const data = await res.json()
-        if (res.ok && !data.registered) {
+        console.log("Status check result:", data);
+        
+        if (!data.registered) {
           setShowSetup(true)
         }
       } catch (err) {
-        console.error("Status check failed", err)
+        console.error("Status check failed:", err)
       }
     }
-    checkStatus()
+    if (user.email) checkStatus()
   }, [user.email])
 
   useEffect(() => {

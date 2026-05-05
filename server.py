@@ -67,7 +67,8 @@ async def get_status(email: str):
 # Allow frontend to talk to this server (Updated for Production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Allow all origins for testing
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -114,4 +115,3 @@ async def chat(req: ChatRequest):
     except Exception as e:
         logger.error(f"🚨 Chat error: {str(e)}")
         raise HTTPException(500, f"AI logic failed: {str(e)}")
-
