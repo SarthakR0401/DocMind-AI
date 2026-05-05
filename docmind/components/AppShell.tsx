@@ -252,10 +252,33 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                   />
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (setupData.name && setupData.password) {
-                      localStorage.setItem(`setup-done-${user.email}`, 'true')
-                      setShowSetup(false)
+                      try {
+                        const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                        const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+                        
+                        const res = await fetch(`${apiUrl}/api/auth/signup`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            email: user.email, 
+                            password: setupData.password, 
+                            name: setupData.name 
+                          })
+                        })
+                        
+                        if (res.ok) {
+                          localStorage.setItem(`setup-done-${user.email}`, 'true')
+                          setShowSetup(false)
+                          alert('Profile completed! You can now also login with your email and password.')
+                        } else {
+                          const data = await res.json()
+                          alert(data.detail || 'Setup failed')
+                        }
+                      } catch (err) {
+                        alert('Network error connecting to backend')
+                      }
                     } else {
                       alert('Please fill all fields')
                     }
