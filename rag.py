@@ -1,4 +1,4 @@
-import pdfplumber
+import fitz  # PyMuPDF
 import requests
 import io
 import numpy as np
@@ -6,18 +6,23 @@ import numpy as np
 def load_pdf(file) -> tuple[str, int]:
     try:
         text = ""
-        with pdfplumber.open(file) as pdf:
-            page_count = len(pdf.pages)
-            for page in pdf.pages:
-                extracted = page.extract_text()
-                if extracted:
-                    text += extracted + "\n"
+        # Read file bytes for fitz
+        file_bytes = file.read()
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        page_count = len(doc)
+        
+        for page in doc:
+            text += page.get_text() + "\n"
+        
+        doc.close()
         
         if not text.strip():
             print("Detected image-based PDF. Triggering OCR.space API...")
-            file.seek(0)
+            # Seek back to 0 if needed, but we already read bytes. 
+            # Re-creating a BytesIO for the OCR request.
+            file_stream = io.BytesIO(file_bytes)
             payload = {'isOverlayRequired': False, 'apikey': 'helloworld', 'language': 'eng', 'isTable': True}
-            res = requests.post('https://api.ocr.space/parse/image', files={'file': ('file.pdf', file)}, data=payload)
+            res = requests.post('https://api.ocr.space/parse/image', files={'file': ('file.pdf', file_stream)}, data=payload)
             result = res.json()
             exit_code = result.get('OCRExitCode')
             if exit_code in [1, 2, 4]:

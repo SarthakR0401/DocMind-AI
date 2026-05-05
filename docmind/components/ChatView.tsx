@@ -262,7 +262,7 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
         
         {/* PDF Previewer Pane */}
         {showPreview && pdfUrl && (
-          <div className="hidden md:block w-1/2 h-full border-r bg-white p-4" style={{ borderColor: '#E4DEFF' }}>
+          <div className={`w-full md:w-1/2 h-full border-r bg-white p-2 md:p-4 transition-all duration-300`} style={{ borderColor: '#E4DEFF' }}>
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 shadow-inner" style={{ borderColor: '#EDE9FF' }}>
               <iframe 
                 src={`${pdfUrl}#toolbar=0&navpanes=0`} 
@@ -274,7 +274,7 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
         )}
 
         {/* Chat Pane */}
-        <div className={`flex flex-col h-full overflow-hidden ${showPreview ? 'w-full md:w-1/2' : 'w-full'}`}>
+        <div className={`flex flex-col h-full overflow-hidden transition-all duration-300 ${showPreview ? 'hidden md:flex md:w-1/2' : 'w-full'}`}>
           {/* Messages - Scrollable Area */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
             <div className="space-y-5 pb-10">
