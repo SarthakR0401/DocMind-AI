@@ -58,6 +58,11 @@ async def login(req: AuthRequest):
     
     return {"message": "Login successful", "user": {"email": req.email, "name": user["name"]}}
 
+@app.get("/api/auth/status/{email}")
+async def get_status(email: str):
+    user = users_col.find_one({"email": email})
+    return {"registered": user is not None}
+
 
 # Allow frontend to talk to this server (Updated for Production)
 app.add_middleware(

@@ -48,11 +48,21 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     const saved = localStorage.getItem('docmind-theme')
     if (saved === 'dark') setIsDark(true)
     
-    // Check if user needs setup (simple local check for demo)
-    const isSetupDone = localStorage.getItem(`setup-done-${user.email}`)
-    if (!isSetupDone) {
-      setShowSetup(true)
+    // Check if user needs setup from backend
+    const checkStatus = async () => {
+      try {
+        const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+        const res = await fetch(`${apiUrl}/api/auth/status/${user.email}`)
+        const data = await res.json()
+        if (res.ok && !data.registered) {
+          setShowSetup(true)
+        }
+      } catch (err) {
+        console.error("Status check failed", err)
+      }
     }
+    checkStatus()
   }, [user.email])
 
   useEffect(() => {
