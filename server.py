@@ -8,8 +8,12 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from pymongo import MongoClient
+from dotenv import load_dotenv
 from rag import load_pdf, chunk_text
 from chatbot import stream_llm_with_context
+
+# Load environment variables
+load_dotenv()
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
