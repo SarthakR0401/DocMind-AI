@@ -42,6 +42,11 @@ export default function LoginPage() {
           setIsSignUp(false)
         } else {
           alert('Login successful!')
+          // Store manual session for demo
+          localStorage.setItem('manual-user', JSON.stringify({
+            name: data.user.name,
+            email: data.user.email
+          }))
           // Redirect to home page
           window.location.href = '/'
         }
