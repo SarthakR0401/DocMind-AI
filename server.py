@@ -44,6 +44,12 @@ except Exception as e:
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
 
+def send_welcome_email(email, name):
+    # This is a placeholder for your email service (e.g., SendGrid, Resend, or SMTP)
+    logger.info(f"📧 Sending welcome email to {email} ({name})...")
+    # You can add your real email API call here
+    return True
+
 class AuthRequest(BaseModel):
     email: str
     password: str
@@ -61,6 +67,9 @@ async def signup(req: AuthRequest):
             {"$set": {"password": req.password, "name": req.name}},
             upsert=True
         )
+        # Send welcome email
+        send_welcome_email(req.email, req.name)
+        
         return {"message": "Account created/updated successfully"}
     except Exception as e:
         logger.error(f"Signup failed: {e}")
