@@ -31,16 +31,16 @@ app.add_middleware(
 )
 
 # MongoDB Configuration
-MONGO_URI = "mongodb+srv://sarthakrathi04_db_user:Sarthak%4004@docmindai.yl74upm.mongodb.net/?appName=DocMindAI"
+MONGO_URI = "mongodb+srv://sarthakrathi04_db_user:Sarthak%4004@docmindai.yl74upm.mongodb.net/?appName=DocMindAI&tlsAllowInvalidCertificates=true"
 try:
-    client = MongoClient(MONGO_URI)
+    # Use a shorter timeout so it doesn't hang the server startup
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client["docmind_db"]
     users_col = db["users"]
-    # Check connection
-    client.admin.command('ping')
-    logger.info("Successfully connected to MongoDB Atlas")
+    # We will check the connection lazily in the routes to avoid startup crashes
+    logger.info("MongoDB Client initialized with Atlas URI")
 except Exception as e:
-    logger.error(f"Could not connect to MongoDB: {e}")
+    logger.error(f"Could not initialize MongoDB Client: {e}")
 
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
