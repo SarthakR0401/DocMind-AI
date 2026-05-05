@@ -31,13 +31,12 @@ app.add_middleware(
 )
 
 # MongoDB Configuration
-MONGO_URI = "mongodb+srv://sarthakrathi04_db_user:Sarthak%4004@docmindai.yl74upm.mongodb.net/?appName=DocMindAI&tlsAllowInvalidCertificates=true"
+# Explicitly adding tls=true and other params for cloud compatibility
+MONGO_URI = "mongodb+srv://sarthakrathi04_db_user:Sarthak%4004@docmindai.yl74upm.mongodb.net/?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true"
 try:
-    # Use a shorter timeout so it doesn't hang the server startup
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
     db = client["docmind_db"]
     users_col = db["users"]
-    # We will check the connection lazily in the routes to avoid startup crashes
     logger.info("MongoDB Client initialized with Atlas URI")
 except Exception as e:
     logger.error(f"Could not initialize MongoDB Client: {e}")
