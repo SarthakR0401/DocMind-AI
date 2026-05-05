@@ -31,13 +31,18 @@ app.add_middleware(
 )
 
 # MongoDB Configuration
-# Using environment variable for security (detected by GitGuardian)
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = os.getenv("MONGO_URI")
+
+if not MONGO_URI:
+    logger.error("❌ CRITICAL: MONGO_URI not found in environment!")
+    # We'll set a dummy to avoid immediate crash, but log the error
+    MONGO_URI = "mongodb://error_no_uri_found"
+
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
     db = client["docmind_db"]
     users_col = db["users"]
-    logger.info("MongoDB Client initialized with Atlas URI")
+    logger.info("MongoDB Client initialized (checking for Atlas connectivity...)")
 except Exception as e:
     logger.error(f"Could not initialize MongoDB Client: {e}")
 
