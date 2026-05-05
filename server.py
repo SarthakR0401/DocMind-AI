@@ -17,6 +17,15 @@ logger = logging.getLogger("DocMind")
 
 app = FastAPI(title="DocMind AI Backend")
 
+# ── CORS Middleware ────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # MongoDB Configuration
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 try:
@@ -42,36 +51,37 @@ async def signup(req: AuthRequest):
     if not is_valid_email(req.email):
         raise HTTPException(400, "Invalid email format")
     
-    # Upsert logic to support profile completion
-    users_col.update_one(
-        {"email": req.email},
-        {"$set": {"password": req.password, "name": req.name}},
-        upsert=True
-    )
-    return {"message": "Account created/updated successfully"}
+    try:
+        # Upsert logic to support profile completion
+        users_col.update_one(
+            {"email": req.email},
+            {"$set": {"password": req.password, "name": req.name}},
+            upsert=True
+        )
+        return {"message": "Account created/updated successfully"}
+    except Exception as e:
+        logger.error(f"Signup failed: {e}")
+        raise HTTPException(500, f"Database error during signup: {e}")
 
 @app.post("/api/auth/login")
 async def login(req: AuthRequest):
-    user = users_col.find_one({"email": req.email})
-    if not user or user["password"] != req.password:
-        raise HTTPException(401, "Invalid credentials")
-    
-    return {"message": "Login successful", "user": {"email": req.email, "name": user["name"]}}
+    try:
+        user = users_col.find_one({"email": req.email})
+        if not user or user["password"] != req.password:
+            raise HTTPException(401, "Invalid credentials")
+        return {"message": "Login successful", "user": {"email": req.email, "name": user["name"]}}
+    except Exception as e:
+        logger.error(f"Login failed: {e}")
+        raise HTTPException(500, f"Database error during login: {e}")
 
 @app.get("/api/auth/status/{email}")
 async def get_status(email: str):
-    user = users_col.find_one({"email": email})
-    return {"registered": user is not None}
-
-
-# Allow frontend to talk to this server (Updated for Production)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # Allow all origins for testing
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    try:
+        user = users_col.find_one({"email": email})
+        return {"registered": user is not None}
+    except Exception as e:
+        logger.error(f"Status check failed: {e}")
+        return {"registered": False, "error": str(e)}
 
 @app.get("/")
 async def root():
@@ -102,15 +112,14 @@ async def upload_pdf(file: UploadFile = File(...)):
 class ChatRequest(BaseModel):
     question: str
     chunks: list[str]
-    history: list[dict] = []
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest):
     logger.info(f"💬 Chat request: {req.question[:50]}...")
     try:
         return StreamingResponse(
-            stream_llm_with_context(req.question, req.chunks, req.history),
-            media_type="text/plain"
+            stream_llm_with_context(req.question, req.chunks),
+            media_type="text/event-stream"
         )
     except Exception as e:
         logger.error(f"🚨 Chat error: {str(e)}")
