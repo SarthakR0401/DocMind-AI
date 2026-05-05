@@ -286,37 +286,42 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
                 </span>
               </div>
 
-              {messages.map((msg, i) => (
-                <div key={i} className="animate-fade-up">
-                  {msg.role === 'user' ? (
-                    <div className="flex justify-end">
-                      <div className="max-w-[85%] md:max-w-[70%] min-w-[60px]">
-                        <div className="bubble-user break-words">{msg.content}</div>
-                        <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
-                        style={{ background: 'linear-gradient(135deg,#7C3AED,#0EA5E9)', boxShadow: '0 4px 14px rgba(91,33,182,0.28)' }}>
-                        🧠
-                      </div>
-                      <div>
-                        <div className="bubble-ai markdown-body">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
-                            style={{ background: '#EDE9FF', border: '1px solid #C4B5FD', color: '#5B21B6', fontSize: '0.62rem' }}>
-                            from doc
-                          </span>
-                          <span className="text-xs" style={{ color: '#B0A8D0' }}>{msg.ts}</span>
+              {messages.map((msg, i) => {
+                // Don't render assistant message if it's empty (still streaming)
+                if (msg.role === 'assistant' && !msg.content) return null;
+
+                return (
+                  <div key={i} className="animate-fade-up">
+                    {msg.role === 'user' ? (
+                      <div className="flex justify-end">
+                        <div className="max-w-[85%] md:max-w-[70%] min-w-[60px]">
+                          <div className="bubble-user break-words">{msg.content}</div>
+                          <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                          style={{ background: 'linear-gradient(135deg,#7C3AED,#0EA5E9)', boxShadow: '0 4px 14px rgba(91,33,182,0.28)' }}>
+                          🧠
+                        </div>
+                        <div>
+                          <div className="bubble-ai markdown-body">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
+                              style={{ background: '#EDE9FF', border: '1px solid #C4B5FD', color: '#5B21B6', fontSize: '0.62rem' }}>
+                              from doc
+                            </span>
+                            <span className="text-xs" style={{ color: '#B0A8D0' }}>{msg.ts}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
 
               {/* Typing indicator */}
               {loading && (
