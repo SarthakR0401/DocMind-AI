@@ -31,8 +31,8 @@ app.add_middleware(
 )
 
 # MongoDB Configuration
-# Explicitly adding tls=true and other params for cloud compatibility
-MONGO_URI = "mongodb+srv://sarthakrathi04_db_user:Sarthak%4004@docmindai.yl74upm.mongodb.net/?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true"
+# Using environment variable for security (detected by GitGuardian)
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
     db = client["docmind_db"]
