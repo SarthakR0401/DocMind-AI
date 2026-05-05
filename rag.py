@@ -35,7 +35,7 @@ def load_pdf(file) -> tuple[str, int]:
         print(f"Capture Error: {e}")
         return "", 0
 
-def chunk_text(text: str, chunk_size: int = 600, overlap: int = 80) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
     if not text.strip(): return []
     chunks = []
     start = 0
@@ -45,7 +45,7 @@ def chunk_text(text: str, chunk_size: int = 600, overlap: int = 80) -> list[str]
         start += chunk_size - overlap
     return chunks
 
-def get_context(query: str, chunks: list[str], top_k: int = 4) -> str:
+def get_context(query: str, chunks: list[str], top_k: int = 8) -> str:
     """
     Upgraded: Uses simple vector-like scoring (TF-IDF style) for better retrieval.
     """
