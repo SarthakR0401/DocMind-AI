@@ -1,10 +1,12 @@
-# server.py
 import datetime
 import logging
+import re
+import json
+import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from rag import load_pdf, chunk_text
 from chatbot import stream_llm_with_context
 
@@ -13,6 +15,49 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("DocMind")
 
 app = FastAPI(title="DocMind AI Backend")
+
+USER_DB = "users.json"
+
+def load_users():
+    if not os.path.exists(USER_DB):
+        return {}
+    with open(USER_DB, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(USER_DB, "w") as f:
+        json.dump(users, f)
+
+def is_valid_email(email):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+    name: str = "User"
+
+@app.post("/api/auth/signup")
+async def signup(req: AuthRequest):
+    if not is_valid_email(req.email):
+        raise HTTPException(400, "Invalid email format")
+    
+    users = load_users()
+    if req.email in users:
+        raise HTTPException(400, "User already exists")
+    
+    users[req.email] = {"password": req.password, "name": req.name}
+    save_users(users)
+    return {"message": "User created successfully"}
+
+@app.post("/api/auth/login")
+async def login(req: AuthRequest):
+    users = load_users()
+    user = users.get(req.email)
+    if not user or user["password"] != req.password:
+        raise HTTPException(401, "Invalid credentials")
+    
+    return {"message": "Login successful", "user": {"email": req.email, "name": user["name"]}}
+
 
 # Allow frontend to talk to this server (Updated for Production)
 app.add_middleware(

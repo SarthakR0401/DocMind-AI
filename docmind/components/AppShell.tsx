@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import ChatView from '@/components/ChatView'
 import HistoryView from '@/components/HistoryView'
+import { Sun, Moon } from 'lucide-react'
 
 export type View = 'chat' | 'history' | 'archived'
 
@@ -39,6 +40,25 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [chatArchive, setChatArchive] = useState<ChatSession[]>([])
   const [archivedIdx, setArchivedIdx] = useState<number | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isDark, setIsDark] = useState(false)
+  const [showSetup, setShowSetup] = useState(false)
+  const [setupData, setSetupData] = useState({ name: '', password: '' })
+
+  useEffect(() => {
+    const saved = localStorage.getItem('docmind-theme')
+    if (saved === 'dark') setIsDark(true)
+    
+    // Check if user needs setup (simple local check for demo)
+    const isSetupDone = localStorage.getItem(`setup-done-${user.email}`)
+    if (!isSetupDone && user.name === 'User') {
+      setShowSetup(true)
+    }
+  }, [user.email, user.name])
+
+  useEffect(() => {
+    localStorage.setItem('docmind-theme', isDark ? 'dark' : 'light')
+  }, [isDark])
+
 
   const firstName = user.name.split(' ')[0]
 
@@ -89,7 +109,8 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden relative" style={{ background: '#F8F6FF' }}>
+    <div className={`flex h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`} style={{ background: 'var(--bg)' }}>
+
 
       {/* Sidebar Overlay for Mobile */}
       {sidebarOpen && (
@@ -128,7 +149,8 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
 
         {/* Top bar */}
         <div className="flex items-center gap-3 px-6 py-4 border-b"
-          style={{ borderColor: '#E4DEFF', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(12px)' }}>
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)', opacity: 0.95, backdropFilter: 'blur(12px)' }}>
+
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 rounded-xl transition-colors"
@@ -143,13 +165,24 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="font-display text-lg" style={{ color: '#0F0A1E' }}>
+            <h1 className="font-display text-lg" style={{ color: 'var(--text)' }}>
               {view === 'history' ? 'Chat History'
                : view === 'archived' ? 'Archived Chat'
                : pdfName ? `Chat — ${pdfName.length > 30 ? pdfName.slice(0,30)+'…' : pdfName}`
                : `Good day, ${firstName}!`}
             </h1>
           </div>
+          
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="p-2 rounded-xl transition-colors"
+            style={{ color: 'var(--violet)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           <div className="text-xs font-bold tracking-widest uppercase flex items-center gap-1.5"
             style={{ color: '#C4B5FD' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
@@ -186,7 +219,58 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
             />
           )}
         </div>
+
+        {/* Profile Setup Modal */}
+        {showSetup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+            <div className="bg-[var(--surface)] border-[1.5px] border-[var(--border)] rounded-3xl p-8 max-w-md w-full shadow-2xl animate-fade-up">
+              <div className="text-4xl mb-4 text-center">🎉</div>
+              <h2 className="font-display text-2xl text-center mb-2" style={{ color: 'var(--text)' }}>Complete your profile</h2>
+              <p className="text-sm text-center mb-6" style={{ color: 'var(--muted)' }}>
+                Just a few more details to get you started with DocMind.
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Your Name</label>
+                  <input 
+                    type="text" 
+                    value={setupData.name}
+                    onChange={e => setSetupData({...setupData, name: e.target.value})}
+                    placeholder="Enter your name"
+                    className="w-full px-5 py-3 rounded-2xl border-2 border-[var(--bg)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Create Password</label>
+                  <input 
+                    type="password" 
+                    value={setupData.password}
+                    onChange={e => setSetupData({...setupData, password: e.target.value})}
+                    placeholder="Min 6 characters"
+                    className="w-full px-5 py-3 rounded-2xl border-2 border-[var(--bg)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    if (setupData.name && setupData.password) {
+                      localStorage.setItem(`setup-done-${user.email}`, 'true')
+                      setShowSetup(false)
+                    } else {
+                      alert('Please fill all fields')
+                    }
+                  }}
+                  className="w-full py-3.5 rounded-2xl font-bold text-white transition-all"
+                  style={{ background: 'linear-gradient(135deg, var(--violet2), var(--indigo))' }}
+                >
+                  Finish Setup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+
     </div>
   )
 }

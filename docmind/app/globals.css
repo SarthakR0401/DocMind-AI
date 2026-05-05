@@ -24,6 +24,17 @@
   --radius: 18px;
 }
 
+.dark {
+  --bg: #0F0A1E;
+  --surface: #1A1532;
+  --border: #2D264D;
+  --violet: #8B5CF6;
+  --violet2: #A78BFA;
+  --violet3: #7C3AED;
+  --text: #F8F6FF;
+  --muted: #B0A8D0;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

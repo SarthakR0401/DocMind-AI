@@ -114,20 +114,20 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
 
           {/* Welcome heading */}
           <div className="mb-8">
-            <h2 className="font-display text-3xl mb-1.5" style={{ color: '#0F0A1E' }}>
+            <h2 className="font-display text-3xl mb-1.5" style={{ color: 'var(--text)' }}>
               Good day, {firstName}!
             </h2>
-            <p className="text-sm" style={{ color: '#8080B0' }}>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
               Upload a PDF to get started — DocMind will do the rest.
             </p>
           </div>
 
           {/* Empty state card */}
           <div className="rounded-3xl p-10 text-center mb-8"
-            style={{ background: '#FFFFFF', border: '1.5px solid #E4DEFF', boxShadow: '0 4px 24px rgba(91,33,182,0.07)' }}>
+            style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', boxShadow: '0 4px 24px rgba(91,33,182,0.07)' }}>
             <div className="text-5xl mb-5 select-none animate-float">📂</div>
-            <h3 className="font-display text-2xl mb-2" style={{ color: '#0F0A1E' }}>No document loaded</h3>
-            <p className="text-sm leading-relaxed" style={{ color: '#6B6B99', maxWidth: 300, margin: '0 auto' }}>
+            <h3 className="font-display text-2xl mb-2" style={{ color: 'var(--text)' }}>No document loaded</h3>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)', maxWidth: 300, margin: '0 auto' }}>
               Upload a PDF using the sidebar panel to start chatting with your document.
             </p>
           </div>
@@ -242,9 +242,9 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
 
   // ── Active chat ────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col bg-[#F8F6FF]">
+    <div className="h-full flex flex-col bg-[var(--bg)]">
       {/* View Toggle Bar */}
-      <div className="px-6 py-2 flex justify-end border-b" style={{ borderColor: '#EDE9FF', background: '#FFFFFF' }}>
+      <div className="px-6 py-2 flex justify-end border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
         <button
           onClick={() => setShowPreview(!showPreview)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
@@ -262,8 +262,8 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
         
         {/* PDF Previewer Pane */}
         {showPreview && pdfUrl && (
-          <div className={`w-full md:w-1/2 h-full border-r bg-white p-2 md:p-4 transition-all duration-300`} style={{ borderColor: '#E4DEFF' }}>
-            <div className="w-full h-full rounded-2xl overflow-hidden border-2 shadow-inner" style={{ borderColor: '#EDE9FF' }}>
+          <div className="w-full md:w-1/2 h-full border-r bg-[var(--surface)] p-2 md:p-4 transition-all duration-300" style={{ borderColor: 'var(--border)' }}>
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 shadow-inner" style={{ borderColor: 'var(--border)' }}>
               <iframe 
                 src={`${pdfUrl}#toolbar=0&navpanes=0`} 
                 className="w-full h-full"

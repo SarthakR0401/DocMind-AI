@@ -97,10 +97,10 @@ export default function Sidebar({
   if (!open) {
     return (
       <div className="hidden md:flex flex-col items-center py-5 gap-3 border-r"
-        style={{ width: 60, background: '#FFFFFF', borderColor: '#E4DEFF' }}>
+        style={{ width: 60, background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <button onClick={() => setOpen(true)} className="p-2 rounded-xl transition-colors"
-          style={{ color: '#7C3AED' }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#F3EEFF')}
+          style={{ color: 'var(--violet2)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="3" y1="6" x2="21" y2="6"/>
@@ -122,15 +122,15 @@ export default function Sidebar({
 
   return (
     <aside className="flex flex-col border-r overflow-hidden transition-all duration-300"
-      style={{ width: 272, minWidth: 272, background: '#FFFFFF', borderColor: '#E4DEFF' }}>
+      style={{ width: 272, minWidth: 272, background: 'var(--surface)', borderColor: 'var(--border)' }}>
 
       {/* Brand */}
       <div className="flex items-center justify-between px-6 pt-6 pb-5">
         <div>
-          <div className="font-display text-2xl mb-0.5" style={{ color: '#0F0A1E' }}>
+          <div className="font-display text-2xl mb-0.5" style={{ color: 'var(--text)' }}>
             🧠 DocMind
           </div>
-          <div className="text-xs font-bold tracking-widest uppercase" style={{ color: '#B0A8D0' }}>
+          <div className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--muted)' }}>
             AI PDF Assistant
           </div>
         </div>
@@ -149,11 +149,11 @@ export default function Sidebar({
         {/* User card */}
         <div className="mx-4 mb-4 rounded-2xl px-4 py-3.5"
           style={{ background: 'linear-gradient(135deg,#EDE9FF,#E0F2FE)', border: '1.5px solid #C4B5FD' }}>
-          <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#8080B0' }}>
+          <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
             Signed in as
           </div>
-          <div className="font-bold text-sm mb-0.5" style={{ color: '#0F0A1E' }}>{firstName}</div>
-          <div className="text-xs truncate" style={{ color: '#8080B0' }}>{user.email}</div>
+          <div className="font-bold text-sm mb-0.5" style={{ color: 'var(--text)' }}>{firstName}</div>
+          <div className="text-xs truncate" style={{ color: 'var(--muted)' }}>{user.email}</div>
         </div>
 
         {/* Navigation */}
@@ -233,10 +233,10 @@ export default function Sidebar({
           {/* Doc stats */}
           {pdfName && (
             <div className="mt-3 rounded-2xl p-3.5"
-              style={{ background: '#F3EEFF', border: '1.5px solid #C4B5FD' }}>
+              style={{ background: 'var(--bg)', border: '1.5px solid var(--border)' }}>
               <div className="flex items-center gap-2 mb-2.5">
-                <FileText size={14} style={{ color: '#5B21B6', flexShrink: 0 }} />
-                <span className="text-xs font-bold truncate" style={{ color: '#5B21B6' }}>
+                <FileText size={14} style={{ color: 'var(--violet)', flexShrink: 0 }} />
+                <span className="text-xs font-bold truncate" style={{ color: 'var(--violet)' }}>
                   {pdfName.length > 24 ? pdfName.slice(0, 24) + '…' : pdfName}
                 </span>
               </div>
@@ -272,12 +272,12 @@ export default function Sidebar({
 }
 
 function Divider({ className = '' }: { className?: string }) {
-  return <div className={`h-px my-3 ${className}`} style={{ background: '#EDE9FE' }} />
+  return <div className={`h-px my-3 ${className}`} style={{ background: 'var(--border)' }} />
 }
 
 function SectionLabel({ text }: { text: string }) {
   return (
-    <div className="px-4 mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: '#B0A8D0' }}>
+    <div className="px-4 mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
       {text}
     </div>
   )

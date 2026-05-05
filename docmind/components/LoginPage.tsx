@@ -6,10 +6,43 @@ import { signIn } from 'next-auth/react'
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [showNamePrompt, setShowNamePrompt] = useState(false)
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     setLoading(true)
     await signIn('google', { callbackUrl: '/' })
+  }
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    // Here we would call the backend API
+    const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login'
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        alert(isSignUp ? 'Signup successful! Please login.' : 'Login successful!')
+        if (isSignUp) setIsSignUp(false)
+        else {
+          // Manually trigger session update or redirect
+          window.location.reload()
+        }
+      } else {
+        alert(data.detail || 'Authentication failed')
+      }
+    } catch (err) {
+      alert('Network error')
+    }
+    setLoading(false)
   }
 
   return (
@@ -113,7 +146,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Login card */}
+          {/* Login/Signup Form */}
           <div className="rounded-3xl overflow-hidden mb-5"
             style={{
               background: '#FFFFFF',
@@ -122,6 +155,55 @@ export default function LoginPage() {
               padding: '36px',
             }}>
 
+            <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+              {isSignUp && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: '#B0A8D0' }}>Full Name</label>
+                  <input 
+                    type="text" 
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="John Doe"
+                    required
+                    className="w-full px-5 py-3.5 rounded-2xl border-2 border-[#F3EEFF] focus:border-[#7C3AED] outline-none transition-all text-sm"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: '#B0A8D0' }}>Email Address</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  required
+                  className="w-full px-5 py-3.5 rounded-2xl border-2 border-[#F3EEFF] focus:border-[#7C3AED] outline-none transition-all text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: '#B0A8D0' }}>Password</label>
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="w-full px-5 py-3.5 rounded-2xl border-2 border-[#F3EEFF] focus:border-[#7C3AED] outline-none transition-all text-sm"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full font-bold text-base py-3.5 rounded-2xl text-white transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, #7C3AED, #4338CA)',
+                  boxShadow: '0 8px 24px rgba(91,33,182,0.2)',
+                }}
+              >
+                {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Login')}
+              </button>
+            </form>
+
             {/* Divider */}
             <div className="relative flex items-center justify-center mb-6">
               <div className="absolute inset-0 flex items-center">
@@ -129,43 +211,26 @@ export default function LoginPage() {
               </div>
               <span className="relative bg-white px-4 text-xs font-bold tracking-widest uppercase"
                 style={{ color: '#B0A8D0' }}>
-                Continue with
+                Or continue with
               </span>
             </div>
 
-            {/* Google logo */}
-            <div className="flex justify-center mb-6">
-              <GoogleLogo />
-            </div>
-
-            {/* Sign in button */}
+            {/* Google Sign in button */}
             <button
-              onClick={handleLogin}
+              onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full font-bold text-base py-4 rounded-2xl text-white transition-all duration-200 disabled:opacity-80 flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, #7C3AED, #4338CA)',
-                boxShadow: '0 8px 32px rgba(91,33,182,0.32)',
-                letterSpacing: '0.01em',
-                animation: 'pulseGlow 2.4s ease-in-out infinite',
-              }}
-              onMouseEnter={e => {
-                (e.target as HTMLElement).style.transform = 'translateY(-2px)'
-                ;(e.target as HTMLElement).style.boxShadow = '0 12px 40px rgba(91,33,182,0.48)'
-              }}
-              onMouseLeave={e => {
-                (e.target as HTMLElement).style.transform = 'translateY(0)'
-                ;(e.target as HTMLElement).style.boxShadow = '0 8px 32px rgba(91,33,182,0.32)'
-              }}
+              className="w-full font-bold text-sm py-3 rounded-2xl border-2 border-[#F3EEFF] text-[#0F0A1E] hover:bg-[#F9F8FF] transition-all flex items-center justify-center gap-3"
             >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in…
-                </>
-              ) : (
-                'Sign in with Google'
-              )}
+              <GoogleLogoMini />
+              {loading ? 'Signing in…' : 'Sign in with Google'}
+            </button>
+          </div>
+
+          <div className="text-center mb-6">
+            <button 
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-sm font-bold" style={{ color: '#7C3AED' }}>
+              {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
             </button>
           </div>
 
@@ -193,9 +258,9 @@ export default function LoginPage() {
   )
 }
 
-function GoogleLogo() {
+function GoogleLogoMini() {
   return (
-    <svg width="36" height="36" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+    <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -203,3 +268,4 @@ function GoogleLogo() {
     </svg>
   )
 }
+
