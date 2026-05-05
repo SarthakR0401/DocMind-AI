@@ -5,43 +5,44 @@ from datetime import datetime
 # Configuration
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def apply_rag_upgrade():
-    print("🚀 Applying Advanced Semantic Search (RAG) Upgrade...")
+def apply_semantic_rag_upgrade():
+    print("🚀 Applying Advanced Semantic Search (RAG) Upgrade with Sentence Transformers...")
     rag_path = os.path.join(PROJECT_ROOT, "rag.py")
     
-    rag_code = """import pdfplumber
+    rag_code = """import fitz  # PyMuPDF
 import requests
 import io
 import numpy as np
 
-def load_pdf(file) -> tuple[str, int]:
+def load_pdf(file_obj) -> tuple[str, int]:
     try:
-        text = ""
-        with pdfplumber.open(file) as pdf:
-            page_count = len(pdf.pages)
-            for page in pdf.pages:
-                extracted = page.extract_text()
-                if extracted:
-                    text += extracted + "\\n"
+        if isinstance(file_obj, bytes):
+            file_obj = io.BytesIO(file_obj)
+        elif hasattr(file_obj, "read"):
+            file_obj = io.BytesIO(file_obj.read())
+
+        doc = fitz.open(stream=file_obj, filetype="pdf")
+        full_text = ""
+        for page in doc:
+            text = page.get_text()
+            if not text.strip():
+                pix = page.get_pixmap()
+                img_bytes = pix.tobytes("png")
+                payload = {'apikey': 'helloworld', 'language': 'eng'}
+                res = requests.post('https://api.ocr.space/parse/image', files={'filename': ('page.png', img_bytes)}, data=payload)
+                result = res.json()
+                if result.get('ParsedResults'):
+                    text = result['ParsedResults'][0].get('ParsedText', '')
+            full_text += text + "\\n"
         
-        if not text.strip():
-            print("Detected image-based PDF. Triggering OCR.space API...")
-            file.seek(0)
-            payload = {'isOverlayRequired': False, 'apikey': 'helloworld', 'language': 'eng', 'isTable': True}
-            res = requests.post('https://api.ocr.space/parse/image', files={'file': ('file.pdf', file)}, data=payload)
-            result = res.json()
-            exit_code = result.get('OCRExitCode')
-            if exit_code in [1, 2, 4]:
-                parsed_text = ""
-                for page in result.get('ParsedResults', []):
-                    parsed_text += page.get('ParsedText', '') + "\\n"
-                text = parsed_text
-        return text, page_count
+        page_count = len(doc)
+        doc.close()
+        return full_text, page_count
     except Exception as e:
         print(f"Capture Error: {e}")
         return "", 0
 
-def chunk_text(text: str, chunk_size: int = 600, overlap: int = 80) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
     if not text.strip(): return []
     chunks = []
     start = 0
@@ -51,30 +52,25 @@ def chunk_text(text: str, chunk_size: int = 600, overlap: int = 80) -> list[str]
         start += chunk_size - overlap
     return chunks
 
-def get_context(query: str, chunks: list[str], top_k: int = 4) -> str:
+def get_context(query: str, chunks: list[str], top_k: int = 5) -> str:
     \"\"\"
-    Upgraded: Uses simple vector-like scoring (TF-IDF style) for better retrieval.
+    Advanced Semantic Search: Uses sentence-transformers for dense vector retrieval.
     \"\"\"
     if not chunks: return "No document content available."
-    
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
-    
     try:
-        vectorizer = TfidfVectorizer(stop_words='english')
-        tfidf_matrix = vectorizer.fit_transform(chunks + [query])
-        cosine_sim = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1]).flatten()
-        
-        top_indices = cosine_sim.argsort()[-top_k:][::-1]
-        top_chunks = [chunks[i] for i in top_indices if cosine_sim[i] > 0]
-        
+        from sentence_transformers import SentenceTransformer
+        from sklearn.metrics.pairwise import cosine_similarity
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        chunk_embeddings = model.encode(chunks)
+        query_embedding = model.encode([query])
+        similarities = cosine_similarity(query_embedding, chunk_embeddings).flatten()
+        top_indices = similarities.argsort()[-top_k:][::-1]
+        top_chunks = [chunks[i] for i in top_indices if similarities[i] > 0.1]
         if not top_chunks: return chunks[0]
         return "\\n\\n---\\n\\n".join(top_chunks)
     except Exception as e:
-        print(f"RAG Error: {e}. Falling back to keyword search.")
-        query_words = set(query.lower().split())
-        scored = sorted(enumerate(chunks), key=lambda x: sum(1 for w in query_words if w in x[1].lower()), reverse=True)
-        return "\\n\\n---\\n\\n".join([chunks[i] for i, _ in scored[:top_k]])
+        print(f"Semantic Search Error: {e}")
+        return chunks[0]
 """
     with open(rag_path, "w", encoding="utf-8") as f:
         f.write(rag_code)
@@ -82,26 +78,22 @@ def get_context(query: str, chunks: list[str], top_k: int = 4) -> str:
     # Update requirements
     req_path = os.path.join(PROJECT_ROOT, "requirements.txt")
     with open(req_path, "a") as f:
-        f.write("\nscikit-learn\nnumpy")
+        f.write("\nsentence-transformers\nscikit-learn\nnumpy")
     
-    print("✅ RAG Upgrade Complete.")
-
-def apply_pdf_previewer_upgrade():
-    print("[DEPLOY] Applying Integrated PDF Previewer Upgrade...")
-    print("[SUCCESS] PDF Previewer Upgrade Complete: Integrated side-by-side split-view previewer in ChatView.")
+    print("✅ Semantic RAG Upgrade Complete.")
 
 def main():
     now = datetime.now()
     date_str = now.strftime("%d-%m-%Y")
+    time_str = now.strftime("%H:%M")
     
-    print(f"--- Autonomous Developer Heartbeat: {date_str} ---")
+    print(f"--- Autonomous Developer Heartbeat: {date_str} {time_str} ---")
     
-    if date_str == "02-05-2026":
-        apply_rag_upgrade()
-    elif date_str == "03-05-2026":
-        apply_pdf_previewer_upgrade()
+    # Scheduled for Tomorrow (May 6th) at 11:30 PM (23:30)
+    if date_str == "06-05-2026" and time_str == "23:30":
+        apply_semantic_rag_upgrade()
     else:
-        print("Nothing scheduled for today. Waiting...")
+        print(f"Nothing scheduled for {date_str} at {time_str}. Waiting for 06-05-2026 23:30...")
 
 if __name__ == "__main__":
     main()
