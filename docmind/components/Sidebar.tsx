@@ -277,6 +277,7 @@ export default function Sidebar({
         DOCMIND AI · v2.0
       </div>
     </aside>
+    </>
   )
 }
 
