@@ -44,11 +44,57 @@ except Exception as e:
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 def send_welcome_email(email, name):
-    # This is a placeholder for your email service (e.g., SendGrid, Resend, or SMTP)
-    logger.info(f"📧 Sending welcome email to {email} ({name})...")
-    # You can add your real email API call here
-    return True
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    
+    if not smtp_user or not smtp_pass:
+        logger.warning("⚠️ SMTP credentials missing. Skipping email.")
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"DocMind AI <{smtp_user}>"
+        msg['To'] = email
+        msg['Subject'] = "Welcome to DocMind AI! 🧠"
+
+        html = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;">
+              <h2 style="color: #7C3AED;">Welcome to DocMind AI! 🧠</h2>
+              <p>Hi <strong>{name}</strong>,</p>
+              <p>We're thrilled to have you join DocMind AI! Your account has been successfully created.</p>
+              <p>With DocMind AI, you can:</p>
+              <ul>
+                <li>Upload any PDF document.</li>
+                <li>Ask complex questions and get instant, context-aware answers.</li>
+                <li>Analyze documents with the speed of Groq LPU technology.</li>
+              </ul>
+              <p>Ready to get started? Head over to your dashboard and upload your first document!</p>
+              <p>If you have any questions, feel free to reply to this email.</p>
+              <p>Best regards,<br>The DocMind AI Team</p>
+              <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+              <p style="font-size: 0.8em; color: #777; text-align: center;">DocMind AI · Powered by Next.js & Groq</p>
+            </div>
+          </body>
+        </html>
+        """
+        msg.attach(MIMEText(html, 'html'))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, email, msg.as_string())
+        
+        logger.info(f"✅ Welcome email sent to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Failed to send welcome email: {e}")
+        return False
 
 class AuthRequest(BaseModel):
     email: str
