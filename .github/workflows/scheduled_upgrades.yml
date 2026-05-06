@@ -2,7 +2,7 @@ name: Autonomous Project Upgrades
 
 on:
   schedule:
-    - cron: '30 4 * * *' # 10:00 AM IST
+    - cron: '0 6 * * *' # 11:30 AM IST
   workflow_dispatch: # Allow manual trigger for testing
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pdfplumber numpy scikit-learn
+          pip install requests pymupdf numpy scikit-learn sentence-transformers
 
       - name: Run Autonomous Developer Script
         run: python scripts/autonomous_developer.py

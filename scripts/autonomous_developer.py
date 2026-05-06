@@ -1,12 +1,21 @@
 import os
 import sys
+import subprocess
 from datetime import datetime
 
 # Configuration
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def run_command(cmd):
+    try:
+        subprocess.run(cmd, shell=True, check=True, cwd=PROJECT_ROOT)
+        return True
+    except Exception as e:
+        print(f"Error running command {cmd}: {e}")
+        return False
+
 def apply_semantic_rag_upgrade():
-    print("🚀 Applying Advanced Semantic Search (RAG) Upgrade with Sentence Transformers...")
+    print("Applying Advanced Semantic Search (RAG) Upgrade...")
     rag_path = os.path.join(PROJECT_ROOT, "rag.py")
     
     rag_code = """import fitz  # PyMuPDF
@@ -77,23 +86,73 @@ def get_context(query: str, chunks: list[str], top_k: int = 5) -> str:
     
     # Update requirements
     req_path = os.path.join(PROJECT_ROOT, "requirements.txt")
-    with open(req_path, "a") as f:
-        f.write("\nsentence-transformers\nscikit-learn\nnumpy")
+    new_reqs = ["sentence-transformers", "scikit-learn", "numpy"]
     
-    print("✅ Semantic RAG Upgrade Complete.")
+    existing_reqs = []
+    if os.path.exists(req_path):
+        with open(req_path, "r") as f:
+            existing_reqs = [line.strip() for line in f.readlines()]
+    
+    with open(req_path, "a") as f:
+        for req in new_reqs:
+            if req not in existing_reqs:
+                f.write(f"\n{req}")
+    
+    print("Semantic RAG Upgrade Applied Locally.")
+    
+    # Push to GitHub
+    print("Pushing to GitHub...")
+    log_file = os.path.join(PROJECT_ROOT, "upgrade_log.txt")
+    with open(log_file, "a") as log:
+        log.write(f"\n[{datetime.now().isoformat()}] Starting push...\n")
+        
+    git_cmd = "git add rag.py requirements.txt scripts/autonomous_developer.py .github/workflows/scheduled_upgrades.yml"
+    if run_command(git_cmd):
+        commit_cmd = 'git commit -m "feat: autonomous upgrade to semantic search (RAG) and updated schedule"'
+        if run_command(commit_cmd):
+            if run_command("git push origin main"):
+                print("Successfully pushed to GitHub!")
+                with open(log_file, "a") as log:
+                    log.write(f"[{datetime.now().isoformat()}] Success!\n")
+                return
+    
+    with open(log_file, "a") as log:
+        log.write(f"[{datetime.now().isoformat()}] Push failed or nothing to commit.\n")
 
 def main():
     now = datetime.now()
     date_str = now.strftime("%d-%m-%Y")
     time_str = now.strftime("%H:%M")
     
+    log_file = os.path.join(PROJECT_ROOT, "upgrade_log.txt")
+    
+    # Check if already applied today
+    already_done = False
+    if os.path.exists(log_file):
+        with open(log_file, "r") as f:
+            logs = f.read()
+            if f"[{date_str}" in logs and "Success!" in logs:
+                already_done = True
+
+    with open(log_file, "a") as log:
+        log.write(f"[{date_str} {time_str}] Heartbeat check...\n")
+    
     print(f"--- Autonomous Developer Heartbeat: {date_str} {time_str} ---")
     
-    # Scheduled for Tomorrow (May 6th) at 11:30 PM (23:30)
-    if date_str == "06-05-2026" and time_str == "23:30":
+    # Scheduled for Today (May 6th) - Run if missed the exact window or manually triggered
+    if date_str == "06-05-2026" and not already_done:
+        print("Scheduled task detected for today. Triggering upgrade...")
         apply_semantic_rag_upgrade()
+    elif already_done:
+        print(f"Task for {date_str} already completed.")
     else:
-        print(f"Nothing scheduled for {date_str} at {time_str}. Waiting for 06-05-2026 23:30...")
+        print(f"Nothing scheduled for {date_str}. Next planned update: TBD")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        log_file = os.path.join(PROJECT_ROOT, "upgrade_log.txt")
+        with open(log_file, "a") as log:
+            log.write(f"[{datetime.now().isoformat()}] FATAL ERROR: {str(e)}\n")
+        raise
