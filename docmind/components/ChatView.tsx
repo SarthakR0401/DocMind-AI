@@ -18,8 +18,23 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const checkSize = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      // On mobile, hide preview by default if it was just loaded
+      if (mobile && messages.length === 0) {
+        // setShowPreview(false) 
+      }
+    }
+    checkSize()
+    window.addEventListener('resize', checkSize)
+    return () => window.removeEventListener('resize', checkSize)
+  }, [messages.length])
 
   useEffect(() => {
     // Small delay ensures DOM has rendered new message height
@@ -266,34 +281,99 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
 
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
           style={{ 
-            background: showPreview ? '#EDE9FF' : '#F3EEFF', 
+            background: showPreview ? 'linear-gradient(135deg, #EDE9FF, #F3EEFF)' : '#FFFFFF', 
             color: '#7C3AED',
-            border: '1px solid #C4B5FD'
+            border: '1.5px solid #C4B5FD'
           }}
         >
-          {showPreview ? '📖 Hide' : '📘 Show'}
+          {showPreview ? (
+            <><span className="hidden sm:inline">📖</span> Hide Preview</>
+          ) : (
+            <><span className="hidden sm:inline">📘</span> Show Preview</>
+          )}
         </button>
       </div>
 
-      <div className={`flex-1 flex overflow-hidden ${showPreview ? 'flex-row' : 'flex-col'}`}>
+      <div className={`flex-1 flex overflow-hidden ${showPreview && !isMobile ? 'flex-row' : 'flex-col'}`}>
         
-        {/* PDF Previewer Pane */}
-        {showPreview && pdfUrl && (
-          <div className="w-full md:w-1/2 h-full border-r bg-[var(--surface)] p-2 md:p-4 transition-all duration-300" style={{ borderColor: 'var(--border)' }}>
-            <div className="w-full h-full rounded-2xl overflow-hidden border-2 shadow-inner" style={{ borderColor: 'var(--border)' }}>
+        {/* PDF Previewer Pane - Desktop/Tablet */}
+        {showPreview && pdfUrl && !isMobile && (
+          <div className="w-full md:w-1/2 lg:w-[45%] h-full border-r bg-[var(--surface)] p-2 md:p-4 transition-all duration-300 animate-slide-in-left" style={{ borderColor: 'var(--border)' }}>
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 shadow-inner relative flex flex-col" style={{ borderColor: 'var(--border)' }}>
+              <div className="p-2 border-b flex justify-between items-center bg-gray-50/50" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight ml-2">Document Preview</span>
+                <a 
+                  href={pdfUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-1.5 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-gray-200"
+                  title="Open in full screen"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                </a>
+              </div>
               <iframe 
-                src={`${pdfUrl}#toolbar=0&navpanes=0`} 
-                className="w-full h-full"
+                src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                className="w-full flex-1"
                 title="PDF Preview"
               />
             </div>
           </div>
         )}
 
+        {/* Mobile Drawer Preview */}
+        {isMobile && pdfUrl && (
+          <>
+            <div 
+              className={`pdf-drawer-backdrop ${showPreview ? 'pdf-drawer-backdrop-open' : ''}`} 
+              onClick={() => setShowPreview(false)} 
+            />
+            <div className={`pdf-drawer ${showPreview ? 'pdf-drawer-open' : 'pdf-drawer-closed'}`}>
+              <div className="pdf-drawer-handle" onClick={() => setShowPreview(false)} />
+              <div className="px-4 pb-2 flex justify-between items-center border-b mb-2" style={{ borderColor: 'var(--border)' }}>
+                <h3 className="font-bold text-sm" style={{ color: 'var(--text)' }}>Document Preview</h3>
+                <div className="flex gap-2">
+                  <a 
+                    href={pdfUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="p-2 bg-[#F3EEFF] text-[#7C3AED] rounded-lg border border-[#C4B5FD]"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                  </a>
+                  <button 
+                    onClick={() => setShowPreview(false)}
+                    className="p-2 bg-[#F3EEFF] text-[#7C3AED] rounded-lg border border-[#C4B5FD]"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden px-2 pb-4">
+                <iframe 
+                  src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                  className="w-full h-full rounded-xl border border-[var(--border)]"
+                  title="PDF Preview"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Chat Pane */}
-        <div className={`flex flex-col h-full overflow-hidden transition-all duration-300 ${showPreview ? 'hidden md:flex md:w-1/2' : 'w-full'}`}>
+        <div className={`flex flex-col h-full overflow-hidden transition-all duration-300 ${showPreview && !isMobile ? 'md:w-1/2 lg:w-[55%]' : 'w-full'}`}>
           {/* Messages - Scrollable Area */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-4 w-full max-w-4xl mx-auto">
             <div className="space-y-5 pb-10">
@@ -313,8 +393,8 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
                   <div key={i} className="animate-fade-up">
                     {msg.role === 'user' ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] md:max-w-[70%] min-w-[60px]">
-                          <div className="bubble-user break-words">{msg.content}</div>
+                        <div className="max-w-[85%] min-w-[40px]">
+                          <div className="bubble-user">{msg.content}</div>
                           <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
                         </div>
                       </div>

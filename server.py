@@ -3,7 +3,7 @@ import logging
 import re
 import json
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -42,7 +42,9 @@ try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
     db = client["docmind_db"]
     users_col = db["users"]
-    logger.info("MongoDB Client initialized (checking for Atlas connectivity...)")
+    # Add index for email
+    users_col.create_index("email", unique=True)
+    logger.info("MongoDB Client initialized and email index ensured.")
 except Exception as e:
     logger.error(f"Could not initialize MongoDB Client: {e}")
 
@@ -107,7 +109,7 @@ class AuthRequest(BaseModel):
     name: str = "User"
 
 @app.post("/api/auth/signup")
-async def signup(req: AuthRequest):
+async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
     if not is_valid_email(req.email):
         raise HTTPException(400, "Invalid email format")
     
@@ -118,8 +120,8 @@ async def signup(req: AuthRequest):
             {"$set": {"password": req.password, "name": req.name}},
             upsert=True
         )
-        # Send welcome email
-        send_welcome_email(req.email, req.name)
+        # Send welcome email in background
+        background_tasks.add_task(send_welcome_email, req.email, req.name)
         
         return {"message": "Account created/updated successfully"}
     except Exception as e:

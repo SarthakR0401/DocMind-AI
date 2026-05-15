@@ -41,22 +41,31 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[st
         start += chunk_size - overlap
     return chunks
 
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+except Exception as e:
+    print(f"Scikit-learn Loading Error: {e}")
+
 def get_context(query: str, chunks: list[str], top_k: int = 5) -> str:
     """
-    Advanced Semantic Search: Uses sentence-transformers for dense vector retrieval.
+    Lightweight Text Search: Uses TF-IDF for retrieval (Memory efficient for Render).
     """
     if not chunks: return "No document content available."
+
     try:
-        from sentence_transformers import SentenceTransformer
-        from sklearn.metrics.pairwise import cosine_similarity
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        chunk_embeddings = model.encode(chunks)
-        query_embedding = model.encode([query])
-        similarities = cosine_similarity(query_embedding, chunk_embeddings).flatten()
+        # Use TF-IDF to find relevant chunks
+        vectorizer = TfidfVectorizer(stop_words='english')
+        tfidf_matrix = vectorizer.fit_transform(chunks)
+        query_vec = vectorizer.transform([query])
+        
+        similarities = cosine_similarity(query_vec, tfidf_matrix).flatten()
         top_indices = similarities.argsort()[-top_k:][::-1]
-        top_chunks = [chunks[i] for i in top_indices if similarities[i] > 0.1]
+        
+        top_chunks = [chunks[i] for i in top_indices if similarities[i] > 0]
+        
         if not top_chunks: return chunks[0]
         return "\n\n---\n\n".join(top_chunks)
     except Exception as e:
-        print(f"Semantic Search Error: {e}")
+        print(f"Search Error: {e}")
         return chunks[0]
