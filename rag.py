@@ -5,6 +5,20 @@ import os
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# Configure a requests session with retries for robust API calls
+http_session = requests.Session()
+retries = Retry(
+    total=3,
+    backoff_factor=0.5,
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods=["POST"]
+)
+adapter = HTTPAdapter(max_retries=retries)
+http_session.mount("https://", adapter)
+http_session.mount("http://", adapter)
 
 # Hugging Face Configuration
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -36,8 +50,8 @@ def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
 
     try:
         headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-        # The API can handle multiple inputs
-        response = requests.post(HF_API_URL, headers=headers, json={"inputs": missing_texts}, timeout=10)
+        # The API can handle multiple inputs. Using session with retries.
+        response = http_session.post(HF_API_URL, headers=headers, json={"inputs": missing_texts}, timeout=15)
         
         if response.status_code == 200:
             embeddings = response.json()
@@ -70,7 +84,7 @@ def load_pdf(file_obj) -> tuple[str, int]:
                 pix = page.get_pixmap()
                 img_bytes = pix.tobytes("png")
                 payload = {'apikey': 'helloworld', 'language': 'eng'}
-                res = requests.post('https://api.ocr.space/parse/image', files={'filename': ('page.png', img_bytes)}, data=payload)
+                res = http_session.post('https://api.ocr.space/parse/image', files={'filename': ('page.png', img_bytes)}, data=payload, timeout=15)
                 result = res.json()
                 if result.get('ParsedResults'):
                     text = result['ParsedResults'][0].get('ParsedText', '')
