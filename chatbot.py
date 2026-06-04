@@ -11,9 +11,10 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
     # Fallback to a warning message instead of a broken key
-    print("⚠️ WARNING: GROQ_API_KEY not found in environment variables.")
-
-_client = groq_sdk.Groq(api_key=GROQ_API_KEY)
+    print("WARNING: GROQ_API_KEY not found in environment variables.")
+    _client = groq_sdk.Groq(api_key="DUMMY_KEY")
+else:
+    _client = groq_sdk.Groq(api_key=GROQ_API_KEY)
 
 # Best free model: fast, smart, 14,400 req/day
 MODEL = "llama-3.3-70b-versatile"

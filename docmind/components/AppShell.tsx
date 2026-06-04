@@ -22,6 +22,9 @@ export interface ChatSession {
   timestamp: string
   messages: Message[]
   count: number
+  pdf_pages?: number
+  word_count?: number
+  chunks?: string[]
 }
 
 interface AppShellProps {
@@ -69,7 +72,26 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
         console.error("Status check failed:", err)
       }
     }
-    if (user.email) checkStatus()
+
+    const fetchChats = async () => {
+      try {
+        const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+        
+        const res = await fetch(`${apiUrl}/api/chats/${encodeURIComponent(user.email)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setChatArchive(data)
+        }
+      } catch (err) {
+        console.error("Failed to load chat history:", err)
+      }
+    }
+
+    if (user.email) {
+      checkStatus()
+      fetchChats()
+    }
   }, [user.email])
 
   useEffect(() => {
@@ -86,7 +108,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
 
   const firstName = user.name.split(' ')[0]
 
-  const saveChat = () => {
+  const saveChat = async () => {
     if (!messages.length) return
     const session: ChatSession = {
       id: Date.now().toString(),
@@ -96,8 +118,29 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
       timestamp: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       messages: [...messages],
       count: messages.filter(m => m.role === 'user').length,
+      pdf_pages: pdfPages,
+      word_count: wordCount,
+      chunks: chunks
     }
-    setChatArchive(prev => [...prev, session])
+
+    try {
+      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      const res = await fetch(`${apiUrl}/api/chats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(session)
+      })
+      if (res.ok) {
+        const listRes = await fetch(`${apiUrl}/api/chats/${encodeURIComponent(user.email)}`)
+        if (listRes.ok) {
+          const data = await listRes.json()
+          setChatArchive(data)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to save chat to database:", err)
+    }
   }
 
   const clearChat = () => {
@@ -120,15 +163,44 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     setView('archived')
   }
 
-  const handleContinueArchived = (idx: number) => {
+  const handleContinueArchived = async (idx: number) => {
     const session = chatArchive[idx]
+    
+    // Load session states
     setMessages([...session.messages])
+    setPdfName(session.pdf)
+    setPdfUrl(null) // No local preview blob for restored session
+    setPdfPages(session.pdf_pages || 0)
+    setWordCount(session.word_count || 0)
+    setChunks(session.chunks || [])
+    
+    // Delete from database so it can be re-saved fresh when done
+    try {
+      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      await fetch(`${apiUrl}/api/chats/${session.id}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error("Failed to delete chat session from database:", err)
+    }
+    
     setChatArchive(prev => prev.filter((_, i) => i !== idx))
     setView('chat')
   }
 
-  const handleDeleteArchived = (idx: number) => {
-    setChatArchive(prev => prev.filter((_, i) => i !== idx))
+  const handleDeleteArchived = async (idx: number) => {
+    const session = chatArchive[idx]
+    try {
+      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      const res = await fetch(`${apiUrl}/api/chats/${session.id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        setChatArchive(prev => prev.filter((_, i) => i !== idx))
+      }
+    } catch (err) {
+      console.error("Failed to delete chat session:", err)
+    }
     if (view === 'archived') setView('history')
   }
 

@@ -7,7 +7,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from pymongo import MongoClient
+import mysql.connector
+from mysql.connector import pooling
 from dotenv import load_dotenv
 from rag import load_pdf, chunk_text
 from chatbot import stream_llm_with_context
@@ -30,23 +31,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# MongoDB Configuration
-MONGO_URI = os.getenv("MONGO_URI")
-
-if not MONGO_URI:
-    logger.error("❌ CRITICAL: MONGO_URI not found in environment!")
-    # We'll set a dummy to avoid immediate crash, but log the error
-    MONGO_URI = "mongodb://error_no_uri_found"
+# MySQL Configuration
+db_host = os.getenv("DB_HOST", "127.0.0.1")
+db_user = os.getenv("DB_USER", "root")
+db_password = os.getenv("DB_PASSWORD", "")
+db_name = os.getenv("DB_NAME", "docmind_db")
+db_port = int(os.getenv("DB_PORT", 3306))
 
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
-    db = client["docmind_db"]
-    users_col = db["users"]
-    # Add index for email
-    users_col.create_index("email", unique=True)
-    logger.info("MongoDB Client initialized and email index ensured.")
+    db_pool = pooling.MySQLConnectionPool(
+        pool_name="docmind_pool",
+        pool_size=10,
+        host=db_host,
+        user=db_user,
+        password=db_password,
+        database=db_name,
+        port=db_port
+    )
+    logger.info("MySQL Connection Pool initialized successfully.")
 except Exception as e:
-    logger.error(f"Could not initialize MongoDB Client: {e}")
+    logger.error(f"❌ CRITICAL: Could not initialize MySQL Connection Pool: {e}")
+    db_pool = None
+
+def get_db_connection():
+    if db_pool is None:
+        raise HTTPException(500, "Database connection pool is not initialized")
+    try:
+        return db_pool.get_connection()
+    except Exception as e:
+        logger.error(f"Failed to get db connection from pool: {e}")
+        raise HTTPException(500, "Database connection timeout or failure")
 
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
@@ -108,18 +122,36 @@ class AuthRequest(BaseModel):
     password: str
     name: str = "User"
 
+class ChatSessionSaveRequest(BaseModel):
+    id: str
+    email: str
+    name: str
+    pdf: str
+    pdf_pages: int = 0
+    word_count: int = 0
+    chunks: list[str] = []
+    messages: list[dict] = []
+    timestamp: str
+    count: int
+
 @app.post("/api/auth/signup")
 async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
     if not is_valid_email(req.email):
         raise HTTPException(400, "Invalid email format")
     
+    conn = None
+    cursor = None
     try:
-        # Upsert logic to support profile completion
-        users_col.update_one(
-            {"email": req.email},
-            {"$set": {"password": req.password, "name": req.name}},
-            upsert=True
-        )
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = """
+            INSERT INTO users (email, name, password) 
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password)
+        """
+        cursor.execute(sql, (req.email, req.name, req.password))
+        conn.commit()
+        
         # Send welcome email in background
         background_tasks.add_task(send_welcome_email, req.email, req.name)
         
@@ -127,26 +159,147 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Signup failed: {e}")
         raise HTTPException(500, f"Database error during signup: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 @app.post("/api/auth/login")
 async def login(req: AuthRequest):
+    conn = None
+    cursor = None
     try:
-        user = users_col.find_one({"email": req.email})
-        if not user or user["password"] != req.password:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = "SELECT email, name, password FROM users WHERE email = %s"
+        cursor.execute(sql, (req.email,))
+        row = cursor.fetchone()
+        
+        if not row:
             raise HTTPException(401, "Invalid credentials")
-        return {"message": "Login successful", "user": {"email": req.email, "name": user["name"]}}
+            
+        email, name, password = row
+        if password != req.password:
+            raise HTTPException(401, "Invalid credentials")
+            
+        return {"message": "Login successful", "user": {"email": email, "name": name}}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Login failed: {e}")
         raise HTTPException(500, f"Database error during login: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 @app.get("/api/auth/status/{email}")
 async def get_status(email: str):
+    conn = None
+    cursor = None
     try:
-        user = users_col.find_one({"email": email})
-        return {"registered": user is not None}
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM users WHERE email = %s", (email,))
+        row = cursor.fetchone()
+        return {"registered": row is not None}
     except Exception as e:
         logger.error(f"Status check failed: {e}")
         return {"registered": False, "error": str(e)}
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.get("/api/chats/{email}")
+async def get_chats(email: str):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = """
+            SELECT id, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count 
+            FROM chat_sessions 
+            WHERE email = %s
+        """
+        cursor.execute(sql, (email,))
+        rows = cursor.fetchall()
+        
+        sessions = []
+        for row in rows:
+            sid, pdf_name, pdf_pages, word_count, chunks_str, messages_str, timestamp, count = row
+            sessions.append({
+                "id": sid,
+                "pdf": pdf_name,
+                "email": email,
+                "pdf_pages": pdf_pages,
+                "word_count": word_count,
+                "chunks": json.loads(chunks_str) if chunks_str else [],
+                "messages": json.loads(messages_str) if messages_str else [],
+                "timestamp": timestamp,
+                "count": count
+            })
+        return sessions
+    except Exception as e:
+        logger.error(f"Failed to fetch chats: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/chats")
+async def save_chat(req: ChatSessionSaveRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        chunks_str = json.dumps(req.chunks)
+        messages_str = json.dumps(req.messages)
+        
+        sql = """
+            INSERT INTO chat_sessions (id, email, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE 
+                messages = VALUES(messages), 
+                count = VALUES(count), 
+                timestamp = VALUES(timestamp)
+        """
+        cursor.execute(sql, (
+            req.id, 
+            req.email, 
+            req.pdf, 
+            req.pdf_pages, 
+            req.word_count, 
+            chunks_str, 
+            messages_str, 
+            req.timestamp, 
+            req.count
+        ))
+        conn.commit()
+        return {"message": "Chat session saved successfully"}
+    except Exception as e:
+        logger.error(f"Failed to save chat session: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.delete("/api/chats/{session_id}")
+async def delete_chat(session_id: str):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM chat_sessions WHERE id = %s", (session_id,))
+        conn.commit()
+        return {"message": "Chat session deleted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to delete chat session: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 @app.get("/")
 async def root():

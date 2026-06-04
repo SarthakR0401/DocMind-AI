@@ -7,5 +7,4 @@ python-multipart
 requests
 scikit-learn
 numpy
-pymongo
-dnspython
+mysql-connector-python
