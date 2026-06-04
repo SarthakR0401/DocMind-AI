@@ -42,6 +42,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [wordCount, setWordCount] = useState(0)
   const [chatArchive, setChatArchive] = useState<ChatSession[]>([])
   const [archivedIdx, setArchivedIdx] = useState<number | null>(null)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [isDark, setIsDark] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
@@ -108,16 +109,21 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
 
   const firstName = user.name.split(' ')[0]
 
-  const saveChat = async () => {
-    if (!messages.length) return
+  const saveChat = async (customMessages?: Message[]) => {
+    const msgsToSave = customMessages || messages;
+    if (!msgsToSave.length) return
+    
+    const sessionId = activeSessionId || Date.now().toString();
+    if (!activeSessionId) setActiveSessionId(sessionId);
+
     const session: ChatSession = {
-      id: Date.now().toString(),
+      id: sessionId,
       pdf: pdfName || 'Untitled',
       email: user.email,
       name: user.name,
       timestamp: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      messages: [...messages],
-      count: messages.filter(m => m.role === 'user').length,
+      messages: [...msgsToSave],
+      count: msgsToSave.filter(m => m.role === 'user').length,
       pdf_pages: pdfPages,
       word_count: wordCount,
       chunks: chunks
@@ -145,6 +151,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
 
   const clearChat = () => {
     setMessages([])
+    setActiveSessionId(null) // Clear active session ID
   }
 
   const handlePdfLoad = (name: string, pages: number, words: number, textChunks: string[], url: string) => {
@@ -155,6 +162,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     setWordCount(words)
     setChunks(textChunks)
     setMessages([])
+    setActiveSessionId(Date.now().toString()) // Start a new session ID!
     setView('chat')
   }
 
@@ -173,15 +181,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     setPdfPages(session.pdf_pages || 0)
     setWordCount(session.word_count || 0)
     setChunks(session.chunks || [])
-    
-    // Delete from database so it can be re-saved fresh when done
-    try {
-      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
-      await fetch(`${apiUrl}/api/chats/${session.id}`, { method: 'DELETE' })
-    } catch (err) {
-      console.error("Failed to delete chat session from database:", err)
-    }
+    setActiveSessionId(session.id) // Keep the same session ID so we update it in-place
     
     setChatArchive(prev => prev.filter((_, i) => i !== idx))
     setView('chat')
@@ -312,6 +312,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
               pdfName={pdfName}
               pdfUrl={pdfUrl}
               firstName={firstName}
+              onSave={saveChat}
             />
           )}
         </div>

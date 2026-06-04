@@ -12,9 +12,10 @@ interface ChatViewProps {
   pdfName: string | null
   pdfUrl: string | null
   firstName: string
+  onSave?: (customMessages?: Message[]) => void
 }
 
-export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUrl, firstName }: ChatViewProps) {
+export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUrl, firstName, onSave }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
@@ -57,7 +58,13 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
       ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
     };
     
-    setMessages(prev => [...prev, userMsg]);
+    const updatedUserMessages = [...messages, userMsg];
+    setMessages(updatedUserMessages);
+    
+    // Auto-save the user message immediately
+    if (onSave) {
+      onSave(updatedUserMessages);
+    }
 
     try {
       const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -102,14 +109,29 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
             return newMsgs;
           });
         }
+
+        // Auto-save the complete conversation once streaming finishes
+        if (onSave) {
+          const finalMessages = [...updatedUserMessages, {
+            role: "assistant" as const,
+            content: fullContent,
+            ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          }];
+          onSave(finalMessages);
+        }
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { 
+      const errorResponseMsg: Message = { 
         role: "assistant", 
         content: "Sorry, there was an error communicating with the server.", 
         ts: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) 
-      }]);
+      };
+      const finalErrorMessages = [...updatedUserMessages, errorResponseMsg];
+      setMessages(finalErrorMessages);
+      if (onSave) {
+        onSave(finalErrorMessages);
+      }
       setLoading(false);
     }
   };
