@@ -12,6 +12,7 @@ from urllib3.util.retry import Retry
 http_session = requests.Session()
 retries = Retry(
     total=3,
+    connect=0,  # Do not retry on connection/DNS failures to avoid noisy logs and delays
     backoff_factor=0.5,
     status_forcelist=[500, 502, 503, 504],
     allowed_methods=["POST"]
@@ -27,8 +28,12 @@ HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/
 
 # Simple local cache for embeddings to save API calls
 _embedding_cache = {}
+_hf_api_available = True
 
 def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
+    global _hf_api_available
+    if not _hf_api_available:
+        return None
     if not HF_TOKEN:
         return None
     
@@ -64,9 +69,14 @@ def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
                 return results
         
         print(f"HF API Error: {response.status_code} {response.text}")
+        if response.status_code in [400, 401, 403, 404]:
+            print("Disabling future Hugging Face API embedding requests due to persistent API error.")
+            _hf_api_available = False
         return None
     except Exception as e:
         print(f"HF Connection Error: {e}")
+        print("Disabling future Hugging Face API embedding requests due to connection/resolution failure.")
+        _hf_api_available = False
         return None
 
 def load_pdf(file_obj) -> tuple[str, int]:
