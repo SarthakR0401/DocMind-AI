@@ -61,6 +61,37 @@ try:
         **ssl_config
     )
     logger.info("MySQL Connection Pool initialized successfully.")
+    
+    # Automatically verify and create tables if they do not exist
+    conn = db_pool.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            email VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id VARCHAR(255) PRIMARY KEY,
+            email VARCHAR(255),
+            pdf_name VARCHAR(255) NOT NULL,
+            pdf_pages INT NOT NULL,
+            word_count INT NOT NULL,
+            chunks LONGTEXT NOT NULL,
+            messages LONGTEXT NOT NULL,
+            timestamp VARCHAR(255) NOT NULL,
+            count INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Database tables verified/created successfully.")
 except Exception as e:
     logger.error(f"❌ CRITICAL: Could not initialize MySQL Connection Pool: {e}")
     db_pool = None
