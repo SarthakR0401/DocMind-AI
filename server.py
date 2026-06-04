@@ -38,6 +38,17 @@ db_password = os.getenv("DB_PASSWORD", "")
 db_name = os.getenv("DB_NAME", "docmind_db")
 db_port = int(os.getenv("DB_PORT", 3306))
 
+# SSL/CA configuration for cloud databases like Aiven
+ssl_config = {}
+if db_host not in ["127.0.0.1", "localhost"]:
+    ca_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ca.pem")
+    if os.path.exists(ca_path):
+        ssl_config["ssl_ca"] = ca_path
+        ssl_config["ssl_verify_cert"] = True
+        logger.info(f"Using SSL CA certificate from: {ca_path}")
+    else:
+        logger.warning("Cloud DB detected but ca.pem not found. Attempting connection without SSL CA.")
+
 try:
     db_pool = pooling.MySQLConnectionPool(
         pool_name="docmind_pool",
@@ -46,7 +57,8 @@ try:
         user=db_user,
         password=db_password,
         database=db_name,
-        port=db_port
+        port=db_port,
+        **ssl_config
     )
     logger.info("MySQL Connection Pool initialized successfully.")
 except Exception as e:
