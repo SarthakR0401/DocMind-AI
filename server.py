@@ -150,14 +150,80 @@ def send_welcome_email(email, name):
         """
         msg.attach(MIMEText(html, 'html'))
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, email, msg.as_string())
-        
-        logger.info(f"✅ Welcome email sent to {email}")
-        return True
+        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+        smtp_port_env = os.getenv("SMTP_PORT")
+
+        sent = False
+        last_error = None
+
+        # If SMTP_PORT is explicitly specified, try it first
+        if smtp_port_env:
+            try:
+                port = int(smtp_port_env)
+                if port == 465:
+                    logger.info(f"Attempting to send email via SMTP_SSL on {smtp_host}:{port}...")
+                    with smtplib.SMTP_SSL(smtp_host, port, timeout=10) as server:
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, email, msg.as_string())
+                    sent = True
+                else:
+                    logger.info(f"Attempting to send email via SMTP STARTTLS on {smtp_host}:{port}...")
+                    with smtplib.SMTP(smtp_host, port, timeout=10) as server:
+                        server.ehlo()
+                        server.starttls()
+                        server.ehlo()
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, email, msg.as_string())
+                    sent = True
+            except smtplib.SMTPAuthenticationError as auth_err:
+                logger.error(f"❌ SMTP Authentication failed: {auth_err}")
+                return False
+            except Exception as e:
+                logger.warning(f"⚠️ Configured SMTP sending on port {smtp_port_env} failed: {e}")
+                last_error = e
+
+        # If not sent yet, try default SMTP ports in cascade
+        if not sent:
+            # 1. Try port 465 (SSL)
+            try:
+                logger.info(f"Attempting SMTP_SSL on {smtp_host}:465...")
+                with smtplib.SMTP_SSL(smtp_host, 465, timeout=10) as server:
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, email, msg.as_string())
+                sent = True
+            except smtplib.SMTPAuthenticationError as auth_err:
+                logger.error(f"❌ SMTP Authentication failed during SSL fallback: {auth_err}")
+                return False
+            except Exception as e_ssl:
+                logger.warning(f"⚠️ SMTP_SSL on port 465 failed: {e_ssl}")
+                last_error = e_ssl
+
+            # 2. Try port 587 (STARTTLS)
+            if not sent:
+                try:
+                    logger.info(f"Attempting SMTP STARTTLS on {smtp_host}:587...")
+                    with smtplib.SMTP(smtp_host, 587, timeout=10) as server:
+                        server.ehlo()
+                        server.starttls()
+                        server.ehlo()
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, email, msg.as_string())
+                    sent = True
+                except smtplib.SMTPAuthenticationError as auth_err:
+                    logger.error(f"❌ SMTP Authentication failed during STARTTLS fallback: {auth_err}")
+                    return False
+                except Exception as e_tls:
+                    logger.warning(f"⚠️ SMTP STARTTLS on port 587 failed: {e_tls}")
+                    last_error = e_tls
+
+        if sent:
+            logger.info(f"✅ Welcome email sent to {email}")
+            return True
+        else:
+            logger.error(f"❌ Failed to send welcome email after all attempts: {last_error}")
+            return False
     except Exception as e:
-        logger.error(f"❌ Failed to send welcome email: {e}")
+        logger.error(f"❌ Failed to send welcome email (general exception): {e}")
         return False
 
 class AuthRequest(BaseModel):
