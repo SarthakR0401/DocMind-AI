@@ -15,3 +15,10 @@ out/
 
 # Streamlit legacy
 .streamlit/
+
+# Build files
+*.tsbuildinfo
+
+# Application logs / user records
+login_records.csv
+upgrade_log.txt
