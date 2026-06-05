@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import ChatView from '@/components/ChatView'
 import HistoryView from '@/components/HistoryView'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Share2, Download, Eye, EyeOff } from 'lucide-react'
 
 export type View = 'chat' | 'history' | 'archived'
 
@@ -47,6 +47,270 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [isDark, setIsDark] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [setupData, setSetupData] = useState({ name: '', password: '' })
+  const [showPreview, setShowPreview] = useState(true)
+  const [shareToast, setShareToast] = useState(false)
+
+  const handleShareChat = async () => {
+    if (!messages.length) return
+    await saveChat()
+    const sessionId = activeSessionId || Date.now().toString()
+    const shareUrl = `${window.location.origin}/share/${sessionId}`
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Chat Transcript — ${pdfName || 'Untitled'}`,
+          text: `Check out my DocMind AI conversation transcript about ${pdfName || 'the document'}:`,
+          url: shareUrl
+        })
+        return
+      } catch (err) {
+        console.log("Web share API failed, copying link...")
+      }
+    }
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setShareToast(true)
+      setTimeout(() => setShareToast(false), 2500)
+    } catch (err) {
+      alert(`Share link:\n${shareUrl}`)
+    }
+  }
+
+  const handleDownloadPdf = () => {
+    if (!messages.length) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      alert("Please allow popups to download the PDF")
+      return
+    }
+
+    const chatTitle = pdfName ? `Chat Transcript - ${pdfName}` : "Chat Transcript"
+    
+    const formatMarkdown = (markdown: string) => {
+      let html = markdown
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+
+      html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return `<pre><code>${code.trim()}</code></pre>`
+      })
+
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      html = html.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>')
+
+      const lines = html.split('\n')
+      let inList = false
+      const processedLines = lines.map(line => {
+        const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/)
+        if (bulletMatch) {
+          let prefix = ''
+          if (!inList) {
+            inList = true;
+            prefix = '<ul>';
+          }
+          return `${prefix}<li>${bulletMatch[1]}</li>`
+        } else {
+          let prefix = ''
+          if (inList) {
+            inList = false;
+            prefix = '</ul>';
+          }
+          return prefix + line
+        }
+      })
+      if (inList) {
+        processedLines.push('</ul>')
+      }
+      html = processedLines.join('\n')
+      html = html.replace(/\n/g, '<br>')
+      return html
+    }
+
+    const messagesHtml = messages.map(msg => {
+      const isUser = msg.role === 'user'
+      const roleLabel = isUser ? 'User' : 'DocMind AI'
+      const bubbleClass = isUser ? 'user-message' : 'ai-message'
+      const htmlContent = formatMarkdown(msg.content)
+      
+      return `
+        <div class="message-container ${isUser ? 'user-container' : 'ai-container'}">
+          <div class="message-header">
+            <span class="message-role">${roleLabel}</span>
+            <span class="message-time">${msg.ts}</span>
+          </div>
+          <div class="message-bubble ${bubbleClass}">
+            ${htmlContent}
+          </div>
+        </div>
+      `
+    }).join('')
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${chatTitle}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+            body {
+               font-family: 'Outfit', sans-serif;
+               color: #0F0A1E;
+               background: #FFFFFF;
+               padding: 40px;
+               max-width: 800px;
+               margin: 0 auto;
+               line-height: 1.6;
+            }
+            .header {
+               border-bottom: 2px solid #E4DEFF;
+               padding-bottom: 20px;
+               margin-bottom: 30px;
+               display: flex;
+               justify-content: space-between;
+               align-items: center;
+            }
+            .brand {
+               font-size: 24px;
+               font-weight: 800;
+               color: #7C3AED;
+            }
+            .meta {
+               text-align: right;
+               font-size: 12px;
+               color: #6B6B99;
+            }
+            .meta-item {
+               margin-bottom: 4px;
+            }
+            .title {
+               font-size: 18px;
+               font-weight: 700;
+               margin-bottom: 20px;
+               color: #0F0A1E;
+            }
+            .message-container {
+               margin-bottom: 24px;
+               page-break-inside: avoid;
+            }
+            .message-header {
+               display: flex;
+               align-items: center;
+               gap: 8px;
+               margin-bottom: 6px;
+               font-size: 12px;
+            }
+            .message-role {
+               font-weight: 700;
+               text-transform: uppercase;
+               letter-spacing: 0.05em;
+            }
+            .user-container .message-role {
+               color: #4338CA;
+            }
+            .ai-container .message-role {
+               color: #0D9488;
+            }
+            .message-time {
+               color: #B0A8D0;
+            }
+            .message-bubble {
+               padding: 14px 20px;
+               border-radius: 12px;
+               font-size: 14px;
+            }
+            .user-message {
+               background-color: #F3EEFF;
+               border: 1px solid #E4DEFF;
+            }
+            .ai-message {
+               background-color: #F0FDFA;
+               border: 1px solid #CCFBF1;
+            }
+            .footer {
+               margin-top: 50px;
+               border-top: 1px solid #E4DEFF;
+               padding-top: 15px;
+               text-align: center;
+               font-size: 11px;
+               color: #B0A8D0;
+            }
+            p { margin: 0 0 10px 0; }
+            p:last-child { margin-bottom: 0; }
+            ul, ol { margin: 0 0 10px 20px; padding: 0; }
+            li { margin-bottom: 4px; }
+            code {
+               font-family: monospace;
+               background: rgba(0,0,0,0.05);
+               padding: 2px 4px;
+               border-radius: 4px;
+               font-size: 13px;
+            }
+            pre {
+               background: #1F2937;
+               color: #F9FAFB;
+               padding: 12px;
+               border-radius: 8px;
+               overflow-x: auto;
+               margin: 10px 0;
+            }
+            pre code {
+               background: transparent;
+               color: inherit;
+               padding: 0;
+            }
+            blockquote {
+               border-left: 4px solid #7C3AED;
+               margin: 10px 0;
+               padding-left: 15px;
+               color: #6B6B99;
+               font-style: italic;
+            }
+            @media print {
+               body {
+                 padding: 20px 0;
+               }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="brand">🧠 DocMind AI</div>
+              <div style="font-size: 12px; color: #6B6B99; font-weight: 600;">AI-POWERED PDF ASSISTANT</div>
+            </div>
+            <div class="meta">
+              <div class="meta-item"><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+              <div class="meta-item"><strong>Document:</strong> ${pdfName || 'N/A'}</div>
+            </div>
+          </div>
+          
+          <div class="title">Chat Conversation Transcript</div>
+          
+          <div class="messages">
+            ${messagesHtml}
+          </div>
+          
+          <div class="footer">
+            Generated by DocMind AI · Responses are based on document context only.
+          </div>
+          
+          <script>
+            document.fonts.ready.then(() => {
+              window.print();
+              setTimeout(() => {
+                window.close();
+              }, 500);
+            });
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('docmind-theme')
@@ -205,7 +469,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden relative ${isDark ? 'dark' : ''}`} style={{ background: 'var(--bg)' }}>
+    <div className={`flex h-[100dvh] overflow-hidden relative ${isDark ? 'dark' : ''}`} style={{ background: 'var(--bg)' }}>
 
 
       {/* Sidebar Overlay for Mobile */}
@@ -243,49 +507,89 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden relative w-full">
 
-        {/* Top bar (Desktop Only) */}
-        <div className="hidden md:flex items-center gap-3 px-6 py-4 border-b"
-          style={{ borderColor: 'var(--border)', background: 'var(--surface)', opacity: 0.95, backdropFilter: 'blur(12px)' }}>
+        {/* Top bar (Responsive) */}
+        <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-4 border-b"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)', opacity: 0.95, backdropFilter: 'blur(12px)', zIndex: 10 }}>
 
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-xl transition-colors"
-            style={{ color: '#8080B0' }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#F3EEFF')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <line x1="3" y1="12" x2="21" y2="12"/>
-              <line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
-          </button>
-          <div className="flex-1">
-            <h1 className="font-display text-lg" style={{ color: 'var(--text)' }}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#8080B0' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#F3EEFF')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+            <h1 className="font-display text-sm md:text-lg truncate max-w-[120px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-none" style={{ color: 'var(--text)' }}>
               {view === 'history' ? 'Chat History'
                : view === 'archived' ? 'Archived Chat'
-               : pdfName ? `Chat — ${pdfName.length > 30 ? pdfName.slice(0,30)+'…' : pdfName}`
+               : pdfName ? `Chat — ${pdfName.length > 20 ? pdfName.slice(0,20)+'…' : pdfName}`
                : `Good day, ${firstName}!`}
             </h1>
           </div>
           
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className="p-2 rounded-xl transition-colors"
-            style={{ color: 'var(--violet)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <div className="flex items-center gap-1.5 md:gap-3">
+            {view === 'chat' && pdfName && (
+              <>
+                <button
+                  onClick={handleShareChat}
+                  disabled={messages.length === 0}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 border border-[#C4B5FD] text-[#7C3AED] hover:bg-[#F3EEFF]"
+                  title="Share Chat"
+                >
+                  <Share2 size={15} />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
 
-          <div className="text-xs font-bold tracking-widest uppercase flex items-center gap-1.5"
-            style={{ color: '#C4B5FD' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
-            DocMind AI
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={messages.length === 0}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 border border-[#C4B5FD] text-[#7C3AED] hover:bg-[#F3EEFF]"
+                  title="Download PDF"
+                >
+                  <Download size={15} />
+                  <span className="hidden sm:inline">PDF</span>
+                </button>
+
+                {pdfUrl && (
+                  <button
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all border border-[#C4B5FD] text-[#7C3AED] hover:bg-[#F3EEFF]"
+                    title={showPreview ? "Hide Preview" : "Show Preview"}
+                  >
+                    {showPreview ? <EyeOff size={15} /> : <Eye size={15} />}
+                    <span className="hidden sm:inline">{showPreview ? "Hide Preview" : "Show Preview"}</span>
+                  </button>
+                )}
+              </>
+            )}
+
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="p-2 rounded-xl transition-colors text-[var(--violet)] hover:bg-[var(--bg)]"
+              style={{ color: 'var(--violet)' }}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            <div className="hidden lg:flex text-xs font-bold tracking-widest uppercase items-center gap-1.5 text-[#C4B5FD]">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+              DocMind AI
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+            </div>
           </div>
         </div>
+
+        {shareToast && (
+          <div className="absolute top-16 right-6 z-[60] rounded-2xl px-5 py-3 text-sm font-bold shadow-xl animate-fade-up border bg-[#E0F9F6] border-[#67E8D8] text-[#0E7469]">
+            ✅ Share link copied to clipboard!
+          </div>
+        )}
 
         {/* View router */}
         <div className="flex-1 overflow-hidden">
@@ -313,6 +617,8 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
               pdfUrl={pdfUrl}
               firstName={firstName}
               onSave={saveChat}
+              showPreview={showPreview}
+              setShowPreview={setShowPreview}
             />
           )}
         </div>

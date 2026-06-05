@@ -344,6 +344,43 @@ async def delete_chat(session_id: str):
         if cursor: cursor.close()
         if conn: conn.close()
 
+@app.get("/api/chats/session/{session_id}")
+async def get_chat_session(session_id: str):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = """
+            SELECT id, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count 
+            FROM chat_sessions 
+            WHERE id = %s
+        """
+        cursor.execute(sql, (session_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(404, "Chat session not found")
+            
+        sid, pdf_name, pdf_pages, word_count, chunks_str, messages_str, timestamp, count = row
+        return {
+            "id": sid,
+            "pdf": pdf_name,
+            "pdf_pages": pdf_pages,
+            "word_count": word_count,
+            "chunks": json.loads(chunks_str) if chunks_str else [],
+            "messages": json.loads(messages_str) if messages_str else [],
+            "timestamp": timestamp,
+            "count": count
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch chat session: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
 @app.get("/")
 async def root():
     return {

@@ -28,7 +28,16 @@ HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/
 
 # Simple local cache for embeddings to save API calls
 _embedding_cache = {}
+
+# Check if Hugging Face API is reachable at startup
 _hf_api_available = True
+if HF_TOKEN:
+    try:
+        # Quick check with a short timeout to see if host is reachable
+        r = requests.head("https://api-inference.huggingface.co", timeout=1.5)
+    except Exception:
+        print("Hugging Face API is unreachable. Disabling semantic search and falling back to TF-IDF.")
+        _hf_api_available = False
 
 def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
     global _hf_api_available
@@ -56,7 +65,7 @@ def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
     try:
         headers = {"Authorization": f"Bearer {HF_TOKEN}"}
         # The API can handle multiple inputs. Using session with retries.
-        response = http_session.post(HF_API_URL, headers=headers, json={"inputs": missing_texts}, timeout=15)
+        response = http_session.post(HF_API_URL, headers=headers, json={"inputs": missing_texts}, timeout=(2.5, 15))
         
         if response.status_code == 200:
             embeddings = response.json()

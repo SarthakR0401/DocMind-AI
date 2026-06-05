@@ -3,6 +3,7 @@ __pycache__/
 
 # Environment files
 .env.local
+.env
 
 # Node
 node_modules/

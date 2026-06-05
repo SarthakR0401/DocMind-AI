@@ -59,7 +59,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ fontFamily: 'var(--font-outfit)' }}>
+    <div className="min-h-[100dvh] flex" style={{ fontFamily: 'var(--font-outfit)' }}>
 
       {/* ── Left Hero Panel ─────────────────────────────────────────── */}
       <div

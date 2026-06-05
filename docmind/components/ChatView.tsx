@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Brain, Zap, MessageSquare } from 'lucide-react'
+import { Send, Brain, Zap, MessageSquare, Copy, Check } from 'lucide-react'
 import type { Message } from './AppShell'
 import ReactMarkdown from 'react-markdown'
 
@@ -13,13 +13,31 @@ interface ChatViewProps {
   pdfUrl: string | null
   firstName: string
   onSave?: (customMessages?: Message[]) => void
+  showPreview: boolean
+  setShowPreview: (show: boolean) => void
 }
 
-export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUrl, firstName, onSave }: ChatViewProps) {
+export default function ChatView({ 
+  messages, 
+  setMessages, 
+  chunks, 
+  pdfName, 
+  pdfUrl, 
+  firstName, 
+  onSave,
+  showPreview,
+  setShowPreview
+}: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showPreview, setShowPreview] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
+
+  const handleCopyMessage = (text: string, index: number) => {
+    navigator.clipboard.writeText(text)
+    setCopiedIdx(index)
+    setTimeout(() => setCopiedIdx(null), 2000)
+  }
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -280,44 +298,6 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
   // ── Active chat ────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]">
-      {/* View Toggle Bar / Mobile Header */}
-      <div className="px-4 py-2 flex items-center justify-between border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-        <button
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent('toggle-sidebar'))
-          }}
-          className="md:hidden p-2 rounded-lg text-[#7C3AED]"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
-        </button>
-
-        <div className="flex-1 text-center md:text-left px-2">
-          <h1 className="text-[11px] font-bold uppercase tracking-wider truncate max-w-[150px] md:max-w-none" style={{ color: 'var(--text)' }}>
-            {pdfName || 'DocMind AI'}
-          </h1>
-        </div>
-
-        <button
-          onClick={() => setShowPreview(!showPreview)}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
-          style={{ 
-            background: showPreview ? 'linear-gradient(135deg, #EDE9FF, #F3EEFF)' : '#FFFFFF', 
-            color: '#7C3AED',
-            border: '1.5px solid #C4B5FD'
-          }}
-        >
-          {showPreview ? (
-            <><span className="hidden sm:inline">📖</span> Hide Preview</>
-          ) : (
-            <><span className="hidden sm:inline">📘</span> Show Preview</>
-          )}
-        </button>
-      </div>
-
       <div className={`flex-1 flex overflow-hidden ${showPreview && !isMobile ? 'flex-row' : 'flex-col'}`}>
         
         {/* PDF Previewer Pane - Desktop/Tablet */}
@@ -417,7 +397,16 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
                       <div className="flex justify-end">
                         <div className="max-w-[85%] min-w-[40px]">
                           <div className="bubble-user">{msg.content}</div>
-                          <div className="text-xs mt-1.5 text-right" style={{ color: '#B0A8D0' }}>{msg.ts}</div>
+                          <div className="flex items-center justify-end gap-2 mt-1.5">
+                            <button
+                              onClick={() => handleCopyMessage(msg.content, i)}
+                              className="p-1 rounded hover:bg-white/10 text-[#B0A8D0] transition-colors"
+                              title="Copy message"
+                            >
+                              {copiedIdx === i ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+                            </button>
+                            <span className="text-xs" style={{ color: '#B0A8D0' }}>{msg.ts}</span>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -435,6 +424,13 @@ export default function ChatView({ messages, setMessages, chunks, pdfName, pdfUr
                               style={{ background: '#EDE9FF', border: '1px solid #C4B5FD', color: '#5B21B6', fontSize: '0.62rem' }}>
                               from doc
                             </span>
+                            <button
+                              onClick={() => handleCopyMessage(msg.content, i)}
+                              className="p-1 rounded hover:bg-violet-100 text-[#B0A8D0] hover:text-[#7C3AED] transition-colors"
+                              title="Copy message"
+                            >
+                              {copiedIdx === i ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                            </button>
                             <span className="text-xs" style={{ color: '#B0A8D0' }}>{msg.ts}</span>
                           </div>
                         </div>

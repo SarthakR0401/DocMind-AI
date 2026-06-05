@@ -31,7 +31,7 @@ export default function Home() {
     : manualUser
 
   if (status === 'loading') {
-    return <div className="h-screen flex items-center justify-center text-sm font-bold text-violet-700">Loading DocMind AI...</div>
+    return <div className="h-[100dvh] flex items-center justify-center text-sm font-bold text-violet-700">Loading DocMind AI...</div>
   }
 
   if (currentUser) {
