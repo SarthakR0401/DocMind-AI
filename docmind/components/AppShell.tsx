@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar'
 import ChatView from '@/components/ChatView'
 import HistoryView from '@/components/HistoryView'
 import { Sun, Moon, Share2, Download, Eye, EyeOff } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 
 export type View = 'chat' | 'history' | 'archived'
 
@@ -761,7 +762,9 @@ function MessageBubble({ msg }: { msg: Message }) {
         🧠
       </div>
       <div>
-        <div className="bubble-ai">{msg.content}</div>
+        <div className="bubble-ai markdown-body">
+          <ReactMarkdown>{msg.content}</ReactMarkdown>
+        </div>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
             style={{ background: '#EDE9FF', border: '1px solid #C4B5FD', color: '#5B21B6', fontSize: '0.65rem' }}>
