@@ -491,6 +491,7 @@ async def get_chat_session(session_id: str):
         if conn: conn.close()
 
 @app.get("/")
+@app.head("/")
 async def root():
     db_status = "Disconnected"
     db_error = None
