@@ -38,17 +38,6 @@ db_password = os.getenv("DB_PASSWORD", "")
 db_name = os.getenv("DB_NAME", "docmind_db")
 db_port = int(os.getenv("DB_PORT", 3306))
 
-# SSL/CA configuration for cloud databases like Aiven
-ssl_config = {}
-if db_host not in ["127.0.0.1", "localhost"]:
-    ca_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ca.pem")
-    if os.path.exists(ca_path):
-        ssl_config["ssl_ca"] = ca_path
-        ssl_config["ssl_verify_cert"] = True
-        logger.info(f"Using SSL CA certificate from: {ca_path}")
-    else:
-        logger.warning("Cloud DB detected but ca.pem not found. Attempting connection without SSL CA.")
-
 import threading
 
 db_lock = threading.Lock()
@@ -64,18 +53,45 @@ def initialize_db_pool():
         if db_pool is not None:
             return db_pool
             
+        # 1. Resolve host and automatically fall back if it is a private Aiven host
+        actual_host = db_host
+        try:
+            import socket
+            socket.gethostbyname(actual_host)
+        except socket.gaierror:
+            # If resolution failed and host ends with .i.aivencloud.com, try public endpoint
+            if ".i.aivencloud.com" in actual_host:
+                public_host = actual_host.replace(".i.aivencloud.com", ".aivencloud.com")
+                logger.warning(f"Internal host '{actual_host}' did not resolve. Falling back to public endpoint: '{public_host}'")
+                try:
+                    socket.gethostbyname(public_host)
+                    actual_host = public_host
+                except socket.gaierror:
+                    logger.error(f"Fallback host '{public_host}' also failed to resolve.")
+                    
+        # 2. Rebuild SSL config for the resolved host
+        local_ssl_config = {}
+        if actual_host not in ["127.0.0.1", "localhost"]:
+            ca_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ca.pem")
+            if os.path.exists(ca_path):
+                local_ssl_config["ssl_ca"] = ca_path
+                local_ssl_config["ssl_verify_cert"] = True
+                logger.info(f"Using SSL CA certificate from: {ca_path} for host: {actual_host}")
+            else:
+                logger.warning(f"Cloud DB detected ({actual_host}) but ca.pem not found. Attempting connection without SSL CA.")
+
         try:
             db_pool = pooling.MySQLConnectionPool(
                 pool_name="docmind_pool",
                 pool_size=10,
-                host=db_host,
+                host=actual_host,
                 user=db_user,
                 password=db_password,
                 database=db_name,
                 port=db_port,
-                **ssl_config
+                **local_ssl_config
             )
-            logger.info("MySQL Connection Pool initialized successfully.")
+            logger.info(f"MySQL Connection Pool initialized successfully on host: {actual_host}")
             
             # Automatically verify and create tables if they do not exist
             conn = db_pool.get_connection()
@@ -109,7 +125,7 @@ def initialize_db_pool():
             logger.info("Database tables verified/created successfully.")
             return db_pool
         except Exception as e:
-            logger.error(f"❌ CRITICAL: Could not initialize MySQL Connection Pool: {e}")
+            logger.error(f"❌ CRITICAL: Could not initialize MySQL Connection Pool on host '{actual_host}': {e}")
             db_pool = None
             raise e
 
