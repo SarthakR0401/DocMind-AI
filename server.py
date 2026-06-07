@@ -49,61 +49,88 @@ if db_host not in ["127.0.0.1", "localhost"]:
     else:
         logger.warning("Cloud DB detected but ca.pem not found. Attempting connection without SSL CA.")
 
+import threading
+
+db_lock = threading.Lock()
+db_pool = None
+
+def initialize_db_pool():
+    global db_pool
+    if db_pool is not None:
+        return db_pool
+        
+    with db_lock:
+        # Check again under lock
+        if db_pool is not None:
+            return db_pool
+            
+        try:
+            db_pool = pooling.MySQLConnectionPool(
+                pool_name="docmind_pool",
+                pool_size=10,
+                host=db_host,
+                user=db_user,
+                password=db_password,
+                database=db_name,
+                port=db_port,
+                **ssl_config
+            )
+            logger.info("MySQL Connection Pool initialized successfully.")
+            
+            # Automatically verify and create tables if they do not exist
+            conn = db_pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    email VARCHAR(255) PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    id VARCHAR(255) PRIMARY KEY,
+                    email VARCHAR(255),
+                    pdf_name VARCHAR(255) NOT NULL,
+                    pdf_pages INT NOT NULL,
+                    word_count INT NOT NULL,
+                    chunks LONGTEXT NOT NULL,
+                    messages LONGTEXT NOT NULL,
+                    timestamp VARCHAR(255) NOT NULL,
+                    count INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
+                )
+            """)
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("Database tables verified/created successfully.")
+            return db_pool
+        except Exception as e:
+            logger.error(f"❌ CRITICAL: Could not initialize MySQL Connection Pool: {e}")
+            db_pool = None
+            raise e
+
+# Initial attempt on startup
 try:
-    db_pool = pooling.MySQLConnectionPool(
-        pool_name="docmind_pool",
-        pool_size=10,
-        host=db_host,
-        user=db_user,
-        password=db_password,
-        database=db_name,
-        port=db_port,
-        **ssl_config
-    )
-    logger.info("MySQL Connection Pool initialized successfully.")
-    
-    # Automatically verify and create tables if they do not exist
-    conn = db_pool.get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            email VARCHAR(255) PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-            id VARCHAR(255) PRIMARY KEY,
-            email VARCHAR(255),
-            pdf_name VARCHAR(255) NOT NULL,
-            pdf_pages INT NOT NULL,
-            word_count INT NOT NULL,
-            chunks LONGTEXT NOT NULL,
-            messages LONGTEXT NOT NULL,
-            timestamp VARCHAR(255) NOT NULL,
-            count INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
-        )
-    """)
-    conn.commit()
-    cursor.close()
-    conn.close()
-    logger.info("Database tables verified/created successfully.")
-except Exception as e:
-    logger.error(f"❌ CRITICAL: Could not initialize MySQL Connection Pool: {e}")
-    db_pool = None
+    initialize_db_pool()
+except Exception:
+    logger.warning("⚠️ MySQL Connection Pool initialization failed on startup. Will retry lazily on request.")
 
 def get_db_connection():
+    global db_pool
     if db_pool is None:
-        raise HTTPException(500, "Database connection pool is not initialized")
+        try:
+            initialize_db_pool()
+        except Exception as e:
+            raise HTTPException(500, f"Database connection pool is not initialized: {e}")
     try:
         return db_pool.get_connection()
     except Exception as e:
         logger.error(f"Failed to get db connection from pool: {e}")
-        raise HTTPException(500, "Database connection timeout or failure")
+        raise HTTPException(500, f"Database connection timeout or failure: {e}")
 
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
