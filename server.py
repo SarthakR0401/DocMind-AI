@@ -492,9 +492,25 @@ async def get_chat_session(session_id: str):
 
 @app.get("/")
 async def root():
+    db_status = "Disconnected"
+    db_error = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+        conn.close()
+        db_status = "Connected"
+    except Exception as e:
+        db_error = str(e)
+        logger.warning(f"Health check: Database ping failed: {e}")
+        
     return {
         "status": "Online",
         "service": "DocMind AI Backend",
+        "database": db_status,
+        "database_error": db_error,
         "timestamp": datetime.datetime.now().isoformat()
     }
 
