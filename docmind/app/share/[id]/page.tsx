@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import { Sun, Moon, Copy, Check, ExternalLink, Download } from 'lucide-react'
+import { SharePageSkeleton } from '@/components/Skeleton'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -323,16 +324,12 @@ export default function SharePage() {
   }
 
   if (loading) {
-    return (
-      <div className={`h-[100dvh] flex items-center justify-center text-sm font-bold ${isDark ? 'bg-[#0F0A1E] text-violet-400' : 'bg-[#F8F6FF] text-violet-700'}`}>
-        Loading Shared Chat...
-      </div>
-    )
+    return <SharePageSkeleton />
   }
 
   if (error || !session) {
     return (
-      <div className={`h-[100dvh] flex flex-col items-center justify-center p-6 text-center ${isDark ? 'bg-[#0F0A1E] text-white' : 'bg-[#F8F6FF] text-[#0F0A1E]'}`}>
+      <div className={`h-[100dvh] flex flex-col items-center justify-center p-6 text-center animate-fade-in ${isDark ? 'bg-[#0F0A1E] text-white' : 'bg-[#F8F6FF] text-[#0F0A1E]'}`}>
         <div className="text-5xl mb-4">🔍</div>
         <h2 className="font-display text-2xl font-bold mb-2">Conversation Not Found</h2>
         <p className="text-sm text-gray-500 max-w-sm mb-6">{error || "This conversation could not be loaded."}</p>
@@ -344,7 +341,7 @@ export default function SharePage() {
   }
 
   return (
-    <div className={`flex flex-col h-[100dvh] overflow-hidden ${isDark ? 'dark bg-[#0F0A1E]' : 'bg-[#F8F6FF]'}`}>
+    <div className={`flex flex-col h-[100dvh] overflow-hidden animate-fade-in ${isDark ? 'dark bg-[#0F0A1E]' : 'bg-[#F8F6FF]'}`}>
       
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-4 border-b bg-[var(--surface)] border-[var(--border)] z-10">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import LoginPage from '@/components/LoginPage'
 import AppShell from '@/components/AppShell'
+import { AppShellSkeleton } from '@/components/Skeleton'
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -31,12 +32,20 @@ export default function Home() {
     : manualUser
 
   if (status === 'loading') {
-    return <div className="h-[100dvh] flex items-center justify-center text-sm font-bold text-violet-700">Loading DocMind AI...</div>
+    return <AppShellSkeleton />
   }
 
   if (currentUser) {
-    return <AppShell user={currentUser} onLogout={handleLogout} />
+    return (
+      <div className="h-full w-full animate-fade-in">
+        <AppShell user={currentUser} onLogout={handleLogout} />
+      </div>
+    )
   }
 
-  return <LoginPage />
+  return (
+    <div className="h-full w-full animate-fade-in">
+      <LoginPage />
+    </div>
+  )
 }
