@@ -492,6 +492,8 @@ async def get_chat_session(session_id: str):
 
 @app.get("/")
 @app.head("/")
+@app.get("/health")
+@app.head("/health")
 async def root():
     db_status = "Disconnected"
     db_error = None

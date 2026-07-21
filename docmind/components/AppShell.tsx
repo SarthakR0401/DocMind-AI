@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import ChatView from '@/components/ChatView'
 import HistoryView from '@/components/HistoryView'
+import OnboardingTour from '@/components/OnboardingTour'
 import { Sun, Moon, Share2, Download, Eye, EyeOff } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
@@ -50,6 +51,17 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [setupData, setSetupData] = useState({ name: '', password: '' })
   const [showPreview, setShowPreview] = useState(true)
   const [shareToast, setShareToast] = useState(false)
+  const [showTour, setShowTour] = useState(false)
+
+  useEffect(() => {
+    if (user.email && !showSetup) {
+      const tourDone = localStorage.getItem(`docmind_tour_completed_${user.email}`)
+      if (tourDone !== 'true') {
+        const timer = setTimeout(() => setShowTour(true), 600)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [user.email, showSetup])
 
   const handleShareChat = async () => {
     if (!messages.length) return
@@ -499,6 +511,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
           onSave={saveChat}
           onClear={clearChat}
           onLogout={onLogout}
+          onStartTour={() => setShowTour(true)}
           hasMessages={messages.length > 0}
           open={sidebarOpen}
           setOpen={setSidebarOpen}
@@ -512,7 +525,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
         <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-4 border-b"
           style={{ borderColor: 'var(--border)', background: 'var(--surface)', opacity: 0.95, backdropFilter: 'blur(12px)', zIndex: 10 }}>
 
-          <div className="flex items-center gap-3">
+          <div data-tour="dashboard-overview" className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-xl transition-colors"
@@ -536,7 +549,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
           
           <div className="flex items-center gap-1.5 md:gap-3">
             {view === 'chat' && pdfName && (
-              <>
+              <div data-tour="topbar-actions" className="flex items-center gap-1.5 md:gap-3">
                 <button
                   onClick={handleShareChat}
                   disabled={messages.length === 0}
@@ -567,10 +580,11 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                     <span className="hidden sm:inline">{showPreview ? "Hide Preview" : "Show Preview"}</span>
                   </button>
                 )}
-              </>
+              </div>
             )}
 
             <button
+              data-tour="theme-toggle"
               onClick={() => setIsDark(!isDark)}
               className="p-2 rounded-xl transition-colors text-[var(--violet)] hover:bg-[var(--bg)]"
               style={{ color: 'var(--violet)' }}
@@ -696,6 +710,15 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
             </div>
           </div>
         )}
+
+        {/* Onboarding Tour Overlay */}
+        <OnboardingTour
+          isOpen={showTour}
+          onClose={() => setShowTour(false)}
+          userEmail={user.email}
+          onEnsureSidebarOpen={() => setSidebarOpen(true)}
+          onEnsureViewChat={() => setView('chat')}
+        />
       </main>
 
     </div>

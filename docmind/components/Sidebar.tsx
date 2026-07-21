@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft } from 'lucide-react'
+import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft, Compass } from 'lucide-react'
 import type { View } from './AppShell'
 
 interface SidebarProps {
@@ -16,6 +16,7 @@ interface SidebarProps {
   onSave: () => void
   onClear: () => void
   onLogout: () => void
+  onStartTour?: () => void
   hasMessages: boolean
   open: boolean
   setOpen: (v: boolean) => void
@@ -27,7 +28,7 @@ function fmtNum(n: number) {
 
 export default function Sidebar({
   user, view, setView, pdfName, pdfPages, wordCount,
-  archiveCount, onPdfLoad, onSave, onClear, onLogout, hasMessages, open, setOpen,
+  archiveCount, onPdfLoad, onSave, onClear, onLogout, onStartTour, hasMessages, open, setOpen,
 }: SidebarProps) {
   const [dragging, setDragging] = useState(false)
   const [saveToast, setSaveToast] = useState(false)
@@ -116,6 +117,12 @@ export default function Sidebar({
           className={`p-2.5 rounded-xl transition-colors ${view === 'history' ? 'nav-item-active' : 'nav-item-inactive'}`}>
           <Clock size={16} />
         </button>
+        {onStartTour && (
+          <button onClick={onStartTour} title="Take Product Tour"
+            className="p-2.5 rounded-xl transition-colors text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-950/40">
+            <Compass size={16} />
+          </button>
+        )}
       </div>
     )
   }
@@ -147,7 +154,7 @@ export default function Sidebar({
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {/* User card */}
-        <div className="mx-4 mb-4 rounded-2xl px-4 py-3.5"
+        <div data-tour="user-profile" className="mx-4 mb-4 rounded-2xl px-4 py-3.5"
           style={{ background: 'linear-gradient(135deg,#EDE9FF,#E0F2FE)', border: '1.5px solid #C4B5FD' }}>
           <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
             Signed in as
@@ -158,7 +165,7 @@ export default function Sidebar({
 
         {/* Navigation */}
         <SectionLabel text="Navigation" />
-        <div className="mx-4 mb-3 flex flex-col gap-2">
+        <div data-tour="nav-menu" className="mx-4 mb-3 flex flex-col gap-2">
           {([
             { icon: MessageSquare, label: 'Chat', key: 'chat' },
             { icon: Clock,         label: `History${archiveCount ? ` (${archiveCount})` : ''}`, key: 'history' },
@@ -176,7 +183,7 @@ export default function Sidebar({
 
         {/* Actions */}
         <SectionLabel text="Actions" />
-        <div className="mx-4 mb-3 grid grid-cols-2 gap-2">
+        <div data-tour="sidebar-actions" className="mx-4 mb-3 grid grid-cols-2 gap-2">
           <ActionBtn icon={<Save size={14} />} label="Save" onClick={handleSave} disabled={!hasMessages} />
           <ActionBtn icon={<Trash2 size={14} />} label="Clear" onClick={onClear} disabled={!hasMessages} variant="danger" />
         </div>
@@ -192,7 +199,7 @@ export default function Sidebar({
 
         {/* Document upload */}
         <SectionLabel text="Document" />
-        <div className="mx-4 mb-3">
+        <div data-tour="upload-zone" className="mx-4 mb-3">
           <input ref={fileRef} type="file" accept=".pdf" className="hidden"
             onChange={e => handleFile(e.target.files?.[0] || null)} />
 
@@ -251,8 +258,18 @@ export default function Sidebar({
 
       <Divider className="mx-4" />
 
-      {/* Sign out */}
-      <div className="mx-4 mb-3">
+      {/* Take Tour & Sign out */}
+      <div className="mx-4 mb-3 space-y-2">
+        {onStartTour && (
+          <button data-tour="restart-tour" onClick={onStartTour}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-left transition-all"
+            style={{ color: '#5B21B6', background: '#F3EEFF', border: '1.5px solid #C4B5FD' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#EDE9FE')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#F3EEFF')}>
+            <Compass size={16} />
+            Take Product Tour
+          </button>
+        )}
         <button onClick={onLogout}
           className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-left transition-all"
           style={{ color: '#E11D48', background: '#FFF0F3', border: '1.5px solid #FECDD3' }}

@@ -475,7 +475,7 @@ const InputBar = React.forwardRef<HTMLTextAreaElement, {
   loading: boolean
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
 }>(({ input, setInput, onSubmit, loading, onKeyDown }, ref) => (
-  <div className="p-4 safe-bottom">
+  <div data-tour="chat-input" className="p-4 safe-bottom">
     <div className="max-w-4xl mx-auto relative group">
       <textarea
         ref={ref}
