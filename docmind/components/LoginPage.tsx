@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Zap, Brain, Lock, FileText, Star } from 'lucide-react'
+import { Zap, Brain, Lock, Star } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 
 export default function LoginPage() {
@@ -10,7 +10,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
-  const [showNamePrompt, setShowNamePrompt] = useState(false)
 
   const handleGoogleLogin = async () => {
     setLoading(true)
@@ -22,15 +21,14 @@ export default function LoginPage() {
     })
   }
 
-
-
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    // Here we would call the backend API
     const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login'
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      const res = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name })
@@ -41,31 +39,29 @@ export default function LoginPage() {
           alert('Signup successful! Please login.')
           setIsSignUp(false)
         } else {
-          // Save manual user to localStorage for persistence
           localStorage.setItem('manual-user', JSON.stringify({
             email: data.user.email,
             name: data.user.name
           }))
-          // Redirect to home page
           window.location.href = '/'
         }
       } else {
         alert(data.detail || 'Authentication failed')
       }
     } catch (err) {
-      alert('Network error')
+      alert('Network error connecting to backend')
     }
     setLoading(false)
   }
 
   return (
-    <div className="min-h-[100dvh] flex" style={{ fontFamily: 'var(--font-outfit)' }}>
+    <div className="min-h-[100dvh] flex select-none" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* ── Left Hero Panel ─────────────────────────────────────────── */}
       <div
         className="hidden lg:flex flex-col justify-between w-[52%] relative overflow-hidden"
         style={{
-          background: 'linear-gradient(145deg, #5B21B6, #4338CA, #0EA5E9, #0D9488)',
+          background: 'linear-gradient(145deg, #1E1B4B, #312E81, #4F46E5, #0284C7)',
           backgroundSize: '300% 300%',
           animation: 'gradAnim 7s ease infinite',
           padding: '56px 60px',
@@ -79,42 +75,39 @@ export default function LoginPage() {
             style={{ background: 'rgba(255,255,255,0.06)', animation: 'spin-slow 12s linear infinite reverse' }} />
           <div className="absolute top-1/2 right-[12%] w-28 h-28 rounded-full"
             style={{ background: 'rgba(255,255,255,0.08)', animation: 'float 6s ease-in-out infinite' }} />
-          <div className="absolute top-1/4 left-[40%] w-16 h-16 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.05)', animation: 'float 4s ease-in-out infinite 1s' }} />
         </div>
 
         {/* Top brand */}
         <div className="relative z-10 animate-fade-up">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8"
-            style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)' }}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 backdrop-blur-md"
+            style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.25)' }}>
             <Star size={13} className="text-yellow-300" fill="currentColor" />
             <span className="text-xs font-bold text-white tracking-widest uppercase">AI-Powered PDF Assistant</span>
           </div>
 
-          <h1 className="font-display text-6xl text-white mb-5 leading-tight">
+          <h1 className="font-display text-6xl text-white mb-5 leading-tight tracking-tight">
             DocMind<br />
             <span style={{ fontStyle: 'italic', opacity: 0.9 }}>AI</span>
           </h1>
 
-          <p className="text-lg leading-relaxed mb-10"
-            style={{ color: 'rgba(255,255,255,0.82)', maxWidth: '380px' }}>
+          <p className="text-base leading-relaxed mb-10 text-slate-200 max-w-[380px]">
             Transform any PDF into an interactive conversation. Ask questions, extract insights,
             and understand complex documents instantly.
           </p>
 
           {/* Feature list */}
-          <div className="flex flex-col gap-5 animate-fade-up delay-200">
+          <div className="flex flex-col gap-4 animate-fade-up delay-200">
             {[
               { icon: Zap, label: 'Instant answers', sub: 'from any PDF document' },
               { icon: Brain, label: 'AI-powered', sub: 'context-aware understanding' },
               { icon: Lock, label: 'Secure & private', sub: '— your data stays yours' },
             ].map(({ icon: Icon, label, sub }, i) => (
               <div key={i} className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.30)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-md"
+                  style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
                   <Icon size={18} className="text-white" />
                 </div>
-                <p style={{ color: 'rgba(255,255,255,0.88)' }} className="text-sm font-medium">
+                <p className="text-sm font-medium text-slate-200">
                   <strong className="text-white font-bold">{label}</strong> {sub}
                 </p>
               </div>
@@ -129,88 +122,83 @@ export default function LoginPage() {
             { val: '99%', label: 'Accuracy rate' },
             { val: '<2s', label: 'Response time' },
           ].map(({ val, label }, i) => (
-            <div key={i} className="rounded-2xl p-4"
+            <div key={i} className="rounded-2xl p-4 backdrop-blur-md"
               style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)' }}>
               <div className="text-2xl font-bold text-white mb-0.5">{val}</div>
-              <div className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{label}</div>
+              <div className="text-xs font-medium text-slate-300">{label}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── Right Sign-In Panel ──────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 py-12"
-        style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(24px)' }}>
+      <div className="flex-1 flex flex-col items-center justify-center px-8 py-12" style={{ background: 'var(--bg)' }}>
 
         <div className="w-full max-w-[400px] animate-fade-up">
 
           {/* Brain icon */}
-          <div className="flex flex-col items-center mb-10">
-            <div className="text-6xl mb-4 animate-float select-none"
-              style={{ filter: 'drop-shadow(0 0 20px rgba(91,33,182,0.45))' }}>
+          <div className="flex flex-col items-center mb-8">
+            <div className="text-5xl mb-3 animate-float select-none">
               🧠
             </div>
-            <h2 className="font-display text-4xl text-center mb-3"
-              style={{ color: '#0F0A1E', lineHeight: '1.15' }}>
-              Welcome back
+            <h2 className="font-display text-3xl font-bold text-center mb-2" style={{ color: 'var(--text)' }}>
+              {isSignUp ? 'Create your account' : 'Welcome back'}
             </h2>
-            <p className="text-center text-sm leading-relaxed" style={{ color: '#6B6B99' }}>
-              Sign in to start chatting<br />with your documents.
+            <p className="text-center text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+              Sign in to start chatting with your documents.
             </p>
           </div>
 
           {/* Login/Signup Form */}
-          <div className="rounded-3xl overflow-hidden mb-5"
+          <div className="rounded-3xl p-8 mb-5 shadow-xl"
             style={{
-              background: '#FFFFFF',
-              border: '1.5px solid #EDE9FE',
-              boxShadow: '0 8px 48px rgba(91,33,182,0.13), 0 2px 8px rgba(0,0,0,0.05)',
-              padding: '36px',
+              background: 'var(--surface)',
+              border: '1.5px solid var(--border)',
             }}>
 
             <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
               {isSignUp && (
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: '#B0A8D0' }}>Full Name</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Full Name</label>
                   <input
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="John Doe"
                     required
-                    className="w-full px-5 py-3.5 rounded-2xl border-2 border-[#F3EEFF] focus:border-[#7C3AED] outline-none transition-all text-sm"
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-[var(--border)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all text-sm"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: '#B0A8D0' }}>Email Address</label>
+                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Email Address</label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="name@company.com"
                   required
-                  className="w-full px-5 py-3.5 rounded-2xl border-2 border-[#F3EEFF] focus:border-[#7C3AED] outline-none transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-[var(--border)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: '#B0A8D0' }}>Password</label>
+                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Password</label>
                 <input
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-5 py-3.5 rounded-2xl border-2 border-[#F3EEFF] focus:border-[#7C3AED] outline-none transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-[var(--border)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all text-sm"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full font-bold text-base py-3.5 rounded-2xl text-white transition-all duration-200"
+                className="w-full font-bold text-sm py-3.5 rounded-2xl text-white transition-all duration-200 shadow-md active:scale-98"
                 style={{
-                  background: 'linear-gradient(135deg, #7C3AED, #4338CA)',
-                  boxShadow: '0 8px 24px rgba(91,33,182,0.2)',
+                  background: 'linear-gradient(135deg, var(--violet), var(--indigo))',
+                  boxShadow: '0 6px 20px rgba(79, 70, 229, 0.28)',
                 }}
               >
                 {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Login')}
@@ -220,10 +208,10 @@ export default function LoginPage() {
             {/* Divider */}
             <div className="relative flex items-center justify-center mb-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full h-px" style={{ background: '#EDE9FE' }} />
+                <div className="w-full h-px" style={{ background: 'var(--border)' }} />
               </div>
-              <span className="relative bg-white px-4 text-xs font-bold tracking-widest uppercase"
-                style={{ color: '#B0A8D0' }}>
+              <span className="relative bg-[var(--surface)] px-4 text-[10px] font-bold tracking-widest uppercase"
+                style={{ color: 'var(--muted)' }}>
                 Or continue with
               </span>
             </div>
@@ -232,17 +220,17 @@ export default function LoginPage() {
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full font-bold text-sm py-3 rounded-2xl border-2 border-[#F3EEFF] text-[#0F0A1E] hover:bg-[#F9F8FF] transition-all flex items-center justify-center gap-3"
+              className="w-full font-bold text-sm py-3 rounded-2xl border-2 border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg)] transition-all flex items-center justify-center gap-3 bg-[var(--surface)]"
             >
               <GoogleLogoMini />
               {loading ? 'Signing in…' : 'Sign in with Google'}
             </button>
           </div>
 
-          <div className="text-center mb-6">
+          <div className="text-center mb-5">
             <button
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm font-bold" style={{ color: '#7C3AED' }}>
+              className="text-xs font-bold" style={{ color: 'var(--violet)' }}>
               {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
             </button>
           </div>
@@ -250,18 +238,16 @@ export default function LoginPage() {
           {/* Trust badges */}
           <div className="flex flex-wrap gap-2 justify-center">
             {[
-              { text: 'Free forever', bg: '#EDE9FF', color: '#5B21B6', border: '#C4B5FD' },
-              { text: 'Secure login', bg: '#E0F9F6', color: '#0E7469', border: '#67E8D8' },
-              { text: 'Any PDF', bg: '#FFF7ED', color: '#92400E', border: '#FCD34D' },
-            ].map(({ text, bg, color, border }, i) => (
-              <span key={i} className="text-xs font-bold px-3 py-1.5 rounded-full"
-                style={{ background: bg, color, border: `1px solid ${border}` }}>
+              'Free forever', 'Secure login', 'Any PDF'
+            ].map((text, i) => (
+              <span key={i} className="text-[11px] font-bold px-3 py-1 rounded-full border shadow-sm"
+                style={{ background: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--border)' }}>
                 {text}
               </span>
             ))}
           </div>
 
-          <p className="text-center mt-5 text-xs leading-relaxed" style={{ color: '#B0A8D0' }}>
+          <p className="text-center mt-4 text-[11px] leading-relaxed" style={{ color: 'var(--muted)' }}>
             By signing in you agree to our terms.<br />
             We never store your passwords.
           </p>
@@ -281,4 +267,3 @@ function GoogleLogoMini() {
     </svg>
   )
 }
-

@@ -191,34 +191,34 @@ export default function ChatView({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               {
-                bg: '#EDE9FF', tc: '#5B21B6', bc: '#C4B5FD', icon: '🧠',
+                icon: '🧠',
                 title: 'Semantic Q&A',
                 desc: 'Ask anything — DocMind finds the exact answer from your document.',
               },
               {
-                bg: '#E0F9F6', tc: '#0E7469', bc: '#67E8D8', icon: '⚡',
+                icon: '⚡',
                 title: 'Instant Answers',
                 desc: 'No waiting. Responses are generated in seconds using Groq\'s LPU.',
               },
               {
-                bg: '#FFF7ED', tc: '#92400E', bc: '#FCD34D', icon: '💬',
+                icon: '💬',
                 title: 'Chat History',
                 desc: 'All your sessions are saved. Resume any conversation anytime.',
               },
-            ].map(({ bg, tc, bc, icon, title, desc }, i) => (
-              <div key={i} className="rounded-2xl p-6 transition-transform hover:-translate-y-0.5"
-                style={{ background: bg, border: `1.5px solid ${bc}` }}>
+            ].map(({ icon, title, desc }, i) => (
+              <div key={i} className="rounded-2xl p-6 transition-all hover:-translate-y-0.5 shadow-sm"
+                style={{ background: 'var(--surface)', border: '1.5px solid var(--border)' }}>
                 <div className="text-3xl mb-3">{icon}</div>
-                <div className="font-bold text-sm mb-1.5" style={{ color: tc }}>{title}</div>
-                <div className="text-xs leading-relaxed" style={{ color: '#6B6B99' }}>{desc}</div>
+                <div className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>{title}</div>
+                <div className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>{desc}</div>
               </div>
             ))}
           </div>
 
           {/* How it works */}
-          <div className="mt-8 rounded-3xl p-6"
-            style={{ background: '#FFFFFF', border: '1.5px solid #E4DEFF' }}>
-            <h3 className="font-display text-lg mb-4" style={{ color: '#0F0A1E' }}>How it works</h3>
+          <div className="mt-8 rounded-3xl p-6 shadow-sm"
+            style={{ background: 'var(--surface)', border: '1.5px solid var(--border)' }}>
+            <h3 className="font-display text-lg font-bold mb-4" style={{ color: 'var(--text)' }}>How it works</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 { step: '01', label: 'Upload your PDF', desc: 'Drag & drop or click to select any PDF file.' },
@@ -226,13 +226,13 @@ export default function ChatView({
                 { step: '03', label: 'Ask anything', desc: 'Get precise, context-aware answers in seconds.' },
               ].map(({ step, label, desc }, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold"
-                    style={{ background: 'linear-gradient(135deg,#7C3AED,#4338CA)', color: '#fff' }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold shadow-md"
+                    style={{ background: 'linear-gradient(135deg, var(--violet), var(--indigo))', color: '#fff' }}>
                     {step}
                   </div>
                   <div>
-                    <div className="font-semibold text-sm mb-0.5" style={{ color: '#0F0A1E' }}>{label}</div>
-                    <div className="text-xs" style={{ color: '#8080B0' }}>{desc}</div>
+                    <div className="font-bold text-sm mb-0.5" style={{ color: 'var(--text)' }}>{label}</div>
+                    <div className="text-xs" style={{ color: 'var(--muted)' }}>{desc}</div>
                   </div>
                 </div>
               ))}
@@ -484,22 +484,22 @@ const InputBar = React.forwardRef<HTMLTextAreaElement, {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder="Ask DocMind anything..."
-        className="w-full pl-6 pr-14 py-4 bg-white border-2 border-transparent focus:border-[#7C3AED] rounded-2xl shadow-xl focus:outline-none resize-none transition-all duration-300 text-[15px]"
+        className="w-full pl-6 pr-14 py-4 bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--border)] focus:border-[var(--violet)] rounded-2xl shadow-xl focus:outline-none resize-none transition-all duration-300 text-[15px]"
         style={{ 
-          boxShadow: '0 10px 25px -5px rgba(124, 58, 237, 0.1), 0 8px 10px -6px rgba(124, 58, 237, 0.1)'
+          boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.12), 0 8px 10px -6px rgba(79, 70, 229, 0.08)'
         }}
       />
       <button
         onClick={onSubmit}
         disabled={loading || !input.trim()}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-[#7C3AED] text-white hover:bg-[#6D28D9] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg active:scale-95"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-[var(--violet)] text-white hover:bg-[var(--indigo)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg active:scale-95"
       >
         {loading
           ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           : <Send size={18} />}
       </button>
     </div>
-    <p className="text-center mt-2 text-xs" style={{ color: '#B0A8D0' }}>
+    <p className="text-center mt-2 text-xs" style={{ color: 'var(--muted)' }}>
       Powered by Groq LPU · DocMind AI · Responses based on document context only
     </p>
   </div>

@@ -553,7 +553,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                 <button
                   onClick={handleShareChat}
                   disabled={messages.length === 0}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 border border-[#C4B5FD] text-[#7C3AED] hover:bg-[#F3EEFF]"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 border border-[var(--border)] text-[var(--violet)] hover:bg-[var(--bg)] bg-[var(--surface)] shadow-sm"
                   title="Share Chat"
                 >
                   <Share2 size={15} />
@@ -563,7 +563,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                 <button
                   onClick={handleDownloadPdf}
                   disabled={messages.length === 0}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 border border-[#C4B5FD] text-[#7C3AED] hover:bg-[#F3EEFF]"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 border border-[var(--border)] text-[var(--violet)] hover:bg-[var(--bg)] bg-[var(--surface)] shadow-sm"
                   title="Download PDF"
                 >
                   <Download size={15} />
@@ -573,7 +573,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                 {pdfUrl && (
                   <button
                     onClick={() => setShowPreview(!showPreview)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all border border-[#C4B5FD] text-[#7C3AED] hover:bg-[#F3EEFF]"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold transition-all border border-[var(--border)] text-[var(--violet)] hover:bg-[var(--bg)] bg-[var(--surface)] shadow-sm"
                     title={showPreview ? "Hide Preview" : "Show Preview"}
                   >
                     {showPreview ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -592,10 +592,10 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
-            <div className="hidden lg:flex text-xs font-bold tracking-widest uppercase items-center gap-1.5 text-[#C4B5FD]">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+            <div className="hidden lg:flex text-xs font-bold tracking-widest uppercase items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: 'var(--violet)' }} />
               DocMind AI
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: 'var(--violet)' }} />
             </div>
           </div>
         </div>

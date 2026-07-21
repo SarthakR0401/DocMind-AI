@@ -307,24 +307,24 @@ export default function OnboardingTour({
 
       {/* Interactive Tooltip Card */}
       <div
-        className="absolute z-[10000] w-[calc(100vw-32px)] max-w-[360px] bg-[var(--surface)] text-[var(--text)] border-[1.5px] border-[#C4B5FD] rounded-3xl p-5 shadow-2xl transition-all duration-300 ease-out"
+        className="absolute z-[10000] w-[calc(100vw-32px)] max-w-[360px] bg-[var(--surface)] text-[var(--text)] border-[1.5px] border-[var(--border)] rounded-3xl p-5 shadow-2xl transition-all duration-300 ease-out"
         style={{
           top: tooltipPos.top,
           left: tooltipPos.left,
-          boxShadow: '0 12px 40px rgba(124, 58, 237, 0.25)',
+          boxShadow: '0 12px 40px rgba(79, 70, 229, 0.22)',
         }}
       >
         {/* Card Header: Icon, Progress & Skip */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-xl">{step.icon || '🧠'}</span>
-            <span className="text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#EDE9FF] border border-[#C4B5FD] text-[#5B21B6]">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--bg)] border border-[var(--border)] text-[var(--violet)]">
               Step {currentStep + 1} of {TOUR_STEPS.length}
             </span>
           </div>
           <button
             onClick={finishTour}
-            className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+            className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
             title="Skip Tour (Esc)"
           >
             <X size={18} />
@@ -332,7 +332,7 @@ export default function OnboardingTour({
         </div>
 
         {/* Title & Description */}
-        <h3 className="font-display text-lg font-bold mb-1.5 text-violet-700 dark:text-violet-300">
+        <h3 className="font-display text-lg font-bold mb-1.5 style={{ color: 'var(--text)' }}">
           {step.title}
         </h3>
         <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 mb-4">
@@ -340,7 +340,7 @@ export default function OnboardingTour({
         </p>
 
         {/* Step Progress Dots */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
           <div className="flex items-center gap-1.5">
             {TOUR_STEPS.map((_, idx) => (
               <button
@@ -348,8 +348,8 @@ export default function OnboardingTour({
                 onClick={() => setCurrentStep(idx)}
                 className={`h-2 rounded-full transition-all duration-200 ${
                   idx === currentStep
-                    ? 'w-6 bg-violet-600'
-                    : 'w-2 bg-violet-200 dark:bg-violet-950 hover:bg-violet-400'
+                    ? 'w-6 bg-[var(--violet)]'
+                    : 'w-2 bg-[var(--border)] hover:bg-[var(--violet)]'
                 }`}
                 title={`Go to step ${idx + 1}`}
               />
@@ -370,7 +370,7 @@ export default function OnboardingTour({
               onClick={nextStep}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold text-white transition-all shadow-md active:scale-95"
               style={{
-                background: 'linear-gradient(135deg, #7C3AED, #4338CA)',
+                background: 'linear-gradient(135deg, var(--violet), var(--indigo))',
               }}
             >
               {isLast ? (
