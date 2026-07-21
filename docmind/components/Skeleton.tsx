@@ -4,12 +4,14 @@ import React from 'react'
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string
+  variant?: 'default' | 'accent'
 }
 
-export function Skeleton({ className = '', style, ...props }: SkeletonProps) {
+export function Skeleton({ className = '', variant = 'default', style, ...props }: SkeletonProps) {
+  const shimmerClass = variant === 'accent' ? 'skeleton-shimmer-accent' : 'skeleton-shimmer'
   return (
     <div
-      className={`skeleton-shimmer rounded-xl ${className}`}
+      className={`${shimmerClass} rounded-xl ${className}`}
       style={style}
       {...props}
     />
@@ -31,7 +33,7 @@ export function SidebarSkeleton() {
       {/* Brand Skeleton */}
       <div className="flex items-center justify-between px-6 pt-6 pb-5">
         <div className="space-y-2">
-          <Skeleton className="h-7 w-32 rounded-xl" />
+          <Skeleton variant="accent" className="h-7 w-32 rounded-xl" />
           <Skeleton className="h-3 w-24 rounded-lg" />
         </div>
         <Skeleton className="h-6 w-6 rounded-lg" />
@@ -42,7 +44,7 @@ export function SidebarSkeleton() {
       {/* User Card Skeleton */}
       <div className="p-4 space-y-4 flex-1">
         <div
-          className="rounded-2xl p-4 space-y-2"
+          className="rounded-2xl p-4 space-y-2 shadow-sm"
           style={{ background: 'var(--bg)', border: '1.5px solid var(--border)' }}
         >
           <Skeleton className="h-3 w-20 rounded-md" />
@@ -53,7 +55,7 @@ export function SidebarSkeleton() {
         {/* Navigation Section Skeleton */}
         <div className="space-y-2">
           <Skeleton className="h-3 w-20 rounded-md mb-3" />
-          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton variant="accent" className="h-10 w-full rounded-xl" />
           <Skeleton className="h-10 w-full rounded-xl" />
         </div>
 
@@ -73,7 +75,7 @@ export function SidebarSkeleton() {
             className="rounded-2xl p-6 flex flex-col items-center justify-center space-y-3"
             style={{ background: 'var(--bg)', border: '1.5px dashed var(--border)' }}
           >
-            <Skeleton className="h-10 w-10 rounded-xl" />
+            <Skeleton variant="accent" className="h-10 w-10 rounded-xl" />
             <Skeleton className="h-4 w-24 rounded-lg" />
             <Skeleton className="h-3 w-32 rounded-md" />
           </div>
@@ -100,7 +102,7 @@ export function TopBarSkeleton() {
       }}
     >
       <div className="flex items-center gap-3">
-        <Skeleton className="h-9 w-9 rounded-xl" />
+        <Skeleton className="h-9 w-9 rounded-xl md:hidden" />
         <Skeleton className="h-6 w-40 md:w-56 rounded-xl" />
       </div>
       <div className="flex items-center gap-2">
@@ -124,13 +126,13 @@ export function ChatViewSkeleton() {
 
       {/* Empty State / Main Content Card Skeleton */}
       <div
-        className="rounded-3xl p-10 flex flex-col items-center justify-center space-y-4"
+        className="rounded-3xl p-10 flex flex-col items-center justify-center space-y-4 shadow-sm"
         style={{
           background: 'var(--surface)',
           border: '1.5px solid var(--border)',
         }}
       >
-        <Skeleton className="h-14 w-14 rounded-2xl" />
+        <Skeleton variant="accent" className="h-14 w-14 rounded-2xl" />
         <Skeleton className="h-6 w-48 rounded-xl" />
         <Skeleton className="h-4 w-72 rounded-lg" />
         <Skeleton className="h-4 w-60 rounded-lg" />
@@ -141,13 +143,13 @@ export function ChatViewSkeleton() {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-2xl p-5 space-y-3"
+            className="rounded-2xl p-5 space-y-3 shadow-sm"
             style={{
               background: 'var(--surface)',
               border: '1.5px solid var(--border)',
             }}
           >
-            <Skeleton className="h-8 w-8 rounded-xl" />
+            <Skeleton variant="accent" className="h-8 w-8 rounded-xl" />
             <Skeleton className="h-5 w-28 rounded-lg" />
             <Skeleton className="h-3 w-full rounded-md" />
             <Skeleton className="h-3 w-4/5 rounded-md" />
@@ -158,14 +160,14 @@ export function ChatViewSkeleton() {
       {/* Floating Input Bar Skeleton */}
       <div className="mt-auto pt-4">
         <div
-          className="rounded-2xl p-3 flex items-center justify-between"
+          className="rounded-2xl p-3 flex items-center justify-between shadow-md"
           style={{
             background: 'var(--surface)',
             border: '1.5px solid var(--border)',
           }}
         >
           <Skeleton className="h-6 w-56 rounded-lg ml-2" />
-          <Skeleton className="h-10 w-10 rounded-xl" />
+          <Skeleton variant="accent" className="h-10 w-10 rounded-xl" />
         </div>
       </div>
     </div>
@@ -204,7 +206,7 @@ export function SharePageSkeleton() {
         }}
       >
         <div className="flex items-center gap-3">
-          <Skeleton className="h-8 w-8 rounded-xl" />
+          <Skeleton variant="accent" className="h-8 w-8 rounded-xl" />
           <div className="space-y-1">
             <Skeleton className="h-5 w-32 rounded-lg" />
             <Skeleton className="h-3 w-20 rounded-md" />
@@ -221,7 +223,7 @@ export function SharePageSkeleton() {
       <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-6 pb-20 w-full max-w-4xl mx-auto space-y-6">
         {/* Info Card Skeleton */}
         <div
-          className="rounded-2xl p-5 space-y-3"
+          className="rounded-2xl p-5 space-y-3 shadow-sm"
           style={{
             background: 'var(--surface)',
             border: '1.5px solid var(--border)',
@@ -239,20 +241,20 @@ export function SharePageSkeleton() {
         <div className="space-y-5">
           {/* User message skeleton */}
           <div className="flex justify-end">
-            <Skeleton className="h-14 w-3/4 rounded-2xl rounded-tr-none" />
+            <Skeleton variant="accent" className="h-14 w-3/4 rounded-2xl rounded-tr-none" />
           </div>
           {/* AI message skeleton */}
           <div className="flex items-start gap-3">
-            <Skeleton className="h-10 w-10 rounded-xl flex-shrink-0" />
+            <Skeleton variant="accent" className="h-10 w-10 rounded-xl flex-shrink-0" />
             <Skeleton className="h-28 w-4/5 rounded-2xl rounded-tl-none" />
           </div>
           {/* User message skeleton 2 */}
           <div className="flex justify-end">
-            <Skeleton className="h-12 w-2/3 rounded-2xl rounded-tr-none" />
+            <Skeleton variant="accent" className="h-12 w-2/3 rounded-2xl rounded-tr-none" />
           </div>
           {/* AI message skeleton 2 */}
           <div className="flex items-start gap-3">
-            <Skeleton className="h-10 w-10 rounded-xl flex-shrink-0" />
+            <Skeleton variant="accent" className="h-10 w-10 rounded-xl flex-shrink-0" />
             <Skeleton className="h-20 w-3/4 rounded-2xl rounded-tl-none" />
           </div>
         </div>
@@ -266,7 +268,7 @@ export function SharePageSkeleton() {
           background: 'var(--surface)',
         }}
       >
-        <Skeleton className="h-12 w-64 rounded-2xl" />
+        <Skeleton variant="accent" className="h-12 w-64 rounded-2xl" />
       </div>
     </div>
   )

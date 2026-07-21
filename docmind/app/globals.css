@@ -124,26 +124,55 @@ body {
   100% { background-position: 200% 0; }
 }
 
+/* Professional Slate & Metallic Light Mode Shimmer */
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    #EBE6FF 0%,
-    #F6F3FF 35%,
-    #EBE6FF 70%
+    #E2E8F0 0%,
+    #F8FAFC 30%,
+    #F1F5F9 50%,
+    #E2E8F0 80%
   );
-  background-size: 200% 100%;
-  animation: skeletonShimmer 1.6s infinite ease-in-out;
+  background-size: 250% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
 }
 
+/* Professional Obsidian & Metallic Dark Mode Shimmer */
 .dark .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    #1E1738 0%,
-    #2B234F 35%,
-    #1E1738 70%
+    #1E293B 0%,
+    #334155 30%,
+    #273549 50%,
+    #1E293B 80%
   );
-  background-size: 200% 100%;
-  animation: skeletonShimmer 1.6s infinite ease-in-out;
+  background-size: 250% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
+}
+
+/* Featured Accent Shimmer (Buttons / Brand Logos) */
+.skeleton-shimmer-accent {
+  background: linear-gradient(
+    90deg,
+    #DDD6FE 0%,
+    #F3EEFF 35%,
+    #C4B5FD 50%,
+    #DDD6FE 80%
+  );
+  background-size: 250% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
+}
+
+.dark .skeleton-shimmer-accent {
+  background: linear-gradient(
+    90deg,
+    #2E1065 0%,
+    #4C1D95 35%,
+    #3B0764 50%,
+    #2E1065 80%
+  );
+  background-size: 250% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
 }
 
 .animate-fade-in { animation: fadeIn 0.3s ease both; }
