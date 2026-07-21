@@ -550,3 +550,9 @@ async def chat_endpoint(req: ChatRequest):
     except Exception as e:
         logger.error(f"🚨 Chat error: {str(e)}")
         raise HTTPException(500, f"AI logic failed: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"🚀 Starting DocMind AI server on port {port}...")
+    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True)
