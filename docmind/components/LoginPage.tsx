@@ -4,12 +4,66 @@ import { useState } from 'react'
 import { Zap, Brain, Lock, Star } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 
+import { useEffect } from 'react'
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+
+  // Reset Password states
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetToken, setResetToken] = useState('')
+  const [resetEmail, setResetEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const token = params.get('resetToken')
+      const emailParam = params.get('resetEmail')
+      if (token && emailParam) {
+        setResetToken(token)
+        setResetEmail(emailParam)
+        setShowResetModal(true)
+      }
+    }
+  }, [])
+
+  const handleForgotPassword = async () => {
+    if (!email || !email.includes('@')) {
+      alert("Please enter a valid email address first in the email field.")
+      return
+    }
+    
+    if (!confirm(`Send a password reset email to ${email}?`)) {
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      const res = await fetch(`${apiUrl}/api/user/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        alert(data.message || 'A password reset link has been sent to your email!')
+      } else {
+        alert(data.detail || 'Failed to request password reset.')
+      }
+    } catch (err) {
+      alert('Network error requesting password reset.')
+    }
+    setLoading(false)
+  }
 
   const handleGoogleLogin = async () => {
     setLoading(true)
@@ -192,7 +246,19 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Password</label>
+                <div className="flex items-center justify-between mb-1.5 ml-1">
+                  <label className="block text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Password</label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-xs font-bold hover:underline transition-all cursor-pointer"
+                      style={{ color: 'var(--violet)' }}
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
                 <input
                   type="password"
                   value={password}
@@ -263,6 +329,113 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Reset Password Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in select-none">
+          <div className="bg-[var(--surface)] border-[1.5px] border-[var(--border)] rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-fade-up relative">
+            <button 
+              onClick={() => {
+                setShowResetModal(false)
+                if (typeof window !== 'undefined') {
+                  window.history.replaceState({}, document.title, window.location.pathname)
+                }
+              }}
+              className="absolute top-4 right-4 p-2 text-[var(--muted)] hover:text-[var(--text)] transition-colors hover:bg-[var(--bg)] rounded-xl cursor-pointer"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <h3 className="font-display text-xl font-bold mb-2 text-[var(--text)] flex items-center gap-2">
+              🔒 Reset Password
+            </h3>
+            <p className="text-xs mb-5 leading-normal" style={{ color: 'var(--muted)' }}>
+              Set a new password for your account associated with <strong>{resetEmail}</strong>.
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              if (!newPassword || newPassword.length < 6) {
+                alert("Password must be at least 6 characters.")
+                return
+              }
+              if (newPassword !== newPasswordConfirm) {
+                alert("Passwords do not match.")
+                return
+              }
+              setResetLoading(true)
+              try {
+                const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+                const res = await fetch(`${apiUrl}/api/user/reset-password`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    email: resetEmail, 
+                    token: resetToken, 
+                    password: newPassword 
+                  })
+                })
+                const data = await res.json()
+                if (res.ok) {
+                  alert(data.message || 'Password reset successfully! You can now login.')
+                  setShowResetModal(false)
+                  if (typeof window !== 'undefined') {
+                    window.history.replaceState({}, document.title, window.location.pathname)
+                  }
+                } else {
+                  alert(data.detail || 'Password reset failed.')
+                }
+              } catch (err) {
+                alert('Network error resetting password.')
+              }
+              setResetLoading(false)
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  required
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-[var(--border)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={e => setNewPasswordConfirm(e.target.value)}
+                  placeholder="Repeat new password"
+                  required
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-[var(--border)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all text-sm font-semibold"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="w-full font-bold text-sm py-3.5 rounded-2xl text-white transition-all duration-200 shadow-md cursor-pointer mt-2"
+                style={{
+                  background: 'linear-gradient(135deg, var(--violet), var(--indigo))'
+                }}
+              >
+                {resetLoading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

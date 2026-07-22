@@ -69,6 +69,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   // Local settings modal temporary form states
   const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'security' | 'preferences'>('profile')
   const [tempName, setTempName] = useState('')
+  const [tempOldPassword, setTempOldPassword] = useState('')
   const [tempPassword, setTempPassword] = useState('')
   const [tempPasswordConfirm, setTempPasswordConfirm] = useState('')
   const [settingsMessage, setSettingsMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -95,6 +96,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   useEffect(() => {
     if (showSettingsModal) {
       setTempName(currentUserName)
+      setTempOldPassword('')
       setTempPassword('')
       setTempPasswordConfirm('')
       setSettingsMessage(null)
@@ -1123,6 +1125,19 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                       {/* Password inputs */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
+                          Current Password (Old Password)
+                        </label>
+                        <input
+                          type="password"
+                          value={tempOldPassword}
+                          onChange={(e) => setTempOldPassword(e.target.value)}
+                          placeholder="Enter current password"
+                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
                           New Password
                         </label>
                         <input
@@ -1150,6 +1165,10 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
 
                     <button
                       onClick={async () => {
+                        if (!tempOldPassword) {
+                          setSettingsMessage({ text: "Please enter your current old password first.", type: 'error' })
+                          return
+                        }
                         if (!tempPassword || tempPassword.length < 6) {
                           setSettingsMessage({ text: "Password must be at least 6 characters.", type: 'error' })
                           return
@@ -1164,14 +1183,21 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                           const res = await fetch(`${apiUrl}/api/user/update`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: user.email, name: currentUserName, password: tempPassword })
+                            body: JSON.stringify({ 
+                              email: user.email, 
+                              name: currentUserName, 
+                              password: tempPassword,
+                              old_password: tempOldPassword 
+                            })
                           })
                           if (res.ok) {
+                            setTempOldPassword('')
                             setTempPassword('')
                             setTempPasswordConfirm('')
                             setSettingsMessage({ text: "Credential password updated successfully!", type: 'success' })
                           } else {
-                            setSettingsMessage({ text: "Failed to update password in database.", type: 'error' })
+                            const data = await res.json().catch(() => ({}))
+                            setSettingsMessage({ text: data.detail || "Failed to update password in database.", type: 'error' })
                           }
                         } catch (err) {
                           setSettingsMessage({ text: "Network error connecting to database.", type: 'error' })

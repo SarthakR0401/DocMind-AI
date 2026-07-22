@@ -151,6 +151,14 @@ def initialize_db_pool():
                     FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
                 )
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS password_resets (
+                    email VARCHAR(255) PRIMARY KEY,
+                    token VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
+                )
+            """)
             # Run alter table commands safely to migate existing databases
             for tbl in ["logins", "page_views"]:
                 try:
@@ -219,42 +227,19 @@ def force_ipv4():
     finally:
         socket.getaddrinfo = original_getaddrinfo
 
-def send_welcome_email(email, name):
+def send_custom_email(email, subject, html):
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASS")
     
     if not smtp_user or not smtp_pass:
-        logger.warning("⚠️ SMTP credentials missing. Skipping email.")
+        logger.warning(f"⚠️ SMTP credentials missing. Skipping email: {subject}")
         return False
 
     try:
         msg = MIMEMultipart()
         msg['From'] = f"DocMind AI <{smtp_user}>"
         msg['To'] = email
-        msg['Subject'] = "Welcome to DocMind AI! 🧠"
-
-        html = f"""
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;">
-              <h2 style="color: #7C3AED;">Welcome to DocMind AI! 🧠</h2>
-              <p>Hi <strong>{name}</strong>,</p>
-              <p>We're thrilled to have you join DocMind AI! Your account has been successfully created.</p>
-              <p>With DocMind AI, you can:</p>
-              <ul>
-                <li>Upload any PDF document.</li>
-                <li>Ask complex questions and get instant, context-aware answers.</li>
-                <li>Analyze documents with the speed of Groq LPU technology.</li>
-              </ul>
-              <p>Ready to get started? Head over to your dashboard and upload your first document!</p>
-              <p>If you have any questions, feel free to reply to this email.</p>
-              <p>Best regards,<br>The DocMind AI Team</p>
-              <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-              <p style="font-size: 0.8em; color: #777; text-align: center;">DocMind AI · Powered by Next.js & Groq</p>
-            </div>
-          </body>
-        </html>
-        """
+        msg['Subject'] = subject
         msg.attach(MIMEText(html, 'html'))
 
         smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -325,14 +310,83 @@ def send_welcome_email(email, name):
                         last_error = e_tls
 
         if sent:
-            logger.info(f"✅ Welcome email sent to {email}")
+            logger.info(f"✅ Email '{subject}' successfully sent to {email}")
             return True
         else:
-            logger.error(f"❌ Failed to send welcome email after all attempts: {last_error}")
+            logger.error(f"❌ Failed to send email '{subject}' to {email}: {last_error}")
             return False
     except Exception as e:
-        logger.error(f"❌ Failed to send welcome email (general exception): {e}")
+        logger.error(f"❌ Failed to send email (general exception): {e}")
         return False
+
+def send_welcome_email(email, name):
+    html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;">
+          <h2 style="color: #7C3AED;">Welcome to DocMind AI! 🧠</h2>
+          <p>Hi <strong>{name}</strong>,</p>
+          <p>We're thrilled to have you join DocMind AI! Your account has been successfully created.</p>
+          <p>With DocMind AI, you can:</p>
+          <ul>
+            <li>Upload any PDF document.</li>
+            <li>Ask complex questions and get instant, context-aware answers.</li>
+            <li>Analyze documents with the speed of Groq LPU technology.</li>
+          </ul>
+          <p>Ready to get started? Head over to your dashboard and upload your first document!</p>
+          <p>If you have any questions, feel free to reply to this email.</p>
+          <p>Best regards,<br>The DocMind AI Team</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="font-size: 0.8em; color: #777; text-align: center;">DocMind AI · Powered by Next.js & Groq</p>
+        </div>
+      </body>
+    </html>
+    """
+    return send_custom_email(email, "Welcome to DocMind AI! 🧠", html)
+
+def send_password_reset_email(email, name, token):
+    frontend_url = os.getenv("NEXTAUTH_URL", "http://localhost:3000")
+    reset_link = f"{frontend_url}?resetToken={token}&resetEmail={email}"
+    
+    html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;">
+          <h2 style="color: #7C3AED;">DocMind AI - Reset Password Request 🔒</h2>
+          <p>Hi <strong>{name}</strong>,</p>
+          <p>We received a request to reset the password for your DocMind AI account. Click the button below to establish a new password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="background-color: #7C3AED; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+          </div>
+          <p>If the button doesn't work, copy and paste the following link directly in your browser address bar:</p>
+          <p style="word-break: break-all; color: #4F46E5;"><a href="{reset_link}">{reset_link}</a></p>
+          <p><strong>Note:</strong> This link is only valid for 1 hour. If you did not make this request, you can safely ignore this email.</p>
+          <p>Best regards,<br>The DocMind AI Team</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="font-size: 0.8em; color: #777; text-align: center;">DocMind AI · Secure Document Assistant</p>
+        </div>
+      </body>
+    </html>
+    """
+    return send_custom_email(email, "Reset Password Request - DocMind AI 🔒", html)
+
+def send_password_reset_confirmation_email(email, name):
+    html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;">
+          <h2 style="color: #059669;">DocMind AI - Password Reset Successful ✅</h2>
+          <p>Hi <strong>{name}</strong>,</p>
+          <p>This is a confirmation email to notify you that the password for your DocMind AI account has been successfully updated.</p>
+          <p>If you did not perform this action, please secure your account immediately or contact support.</p>
+          <p>Best regards,<br>The DocMind AI Team</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="font-size: 0.8em; color: #777; text-align: center;">DocMind AI · Secure Document Assistant</p>
+        </div>
+      </body>
+    </html>
+    """
+    return send_custom_email(email, "Password Reset Successful - DocMind AI ✅", html)
 
 def append_to_csv(filename, header, data_row):
     try:
@@ -429,10 +483,19 @@ class WorkspaceChatRequest(BaseModel):
     workspace_id: str
     history: list[dict] = []
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    token: str
+    password: str
+
 class UserUpdateRequest(BaseModel):
     email: str
     name: str
     password: str | None = None
+    old_password: str | None = None
 
 class ChatSessionSaveRequest(BaseModel):
     id: str
@@ -485,11 +548,11 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks, request: R
         append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status,Country,City", [timestamp, req.email, req.name, "New" if is_new_user else "Updated", country, city])
         
         if is_new_user:
-            # Send welcome email only to brand new users
-            background_tasks.add_task(send_welcome_email, req.email, req.name)
+            # Welcome email is disabled on registration/login
+            # background_tasks.add_task(send_welcome_email, req.email, req.name)
             return {"message": "Account created successfully", "is_new": True}
         else:
-            logger.info(f"User {req.email} already exists. Profile updated. Skipping welcome email.")
+            logger.info(f"User {req.email} already exists. Profile updated.")
             return {"message": "Account updated successfully", "is_new": False}
     except Exception as e:
         logger.error(f"Signup failed: {e}")
@@ -1039,13 +1102,117 @@ async def update_user(req: UserUpdateRequest):
         
         # 2. Update Password if provided
         if req.password and req.password.strip():
+            cursor.execute("SELECT password FROM users WHERE email = %s", (req.email,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(404, "User not found")
+            
+            current_password = row[0]
+            if not req.old_password or req.old_password != current_password:
+                raise HTTPException(400, "Incorrect old password. Please verify and try again.")
+                
             cursor.execute("UPDATE users SET password = %s WHERE email = %s", (req.password, req.email))
             
         conn.commit()
         return {"message": "User details updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to update user details: {e}")
         raise HTTPException(500, f"Database error updating user: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/user/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest, background_tasks: BackgroundTasks):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Check if user is registered
+        cursor.execute("SELECT name FROM users WHERE email = %s", (req.email,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(404, "This email address is not registered in our records.")
+            
+        name = row[0]
+        import uuid
+        
+        # 2. Generate secure token
+        token = uuid.uuid4().hex
+        expires_at = datetime.datetime.now() + datetime.timedelta(hours=1)
+        
+        # 3. Save or update token in password_resets
+        cursor.execute(
+            "INSERT INTO password_resets (email, token, expires_at) VALUES (%s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE token = VALUES(token), expires_at = VALUES(expires_at)",
+            (req.email, token, expires_at)
+        )
+        conn.commit()
+        
+        # 4. Trigger password reset email in background
+        background_tasks.add_task(send_password_reset_email, req.email, name, token)
+        
+        return {"message": "A password reset link has been successfully dispatched to your email."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate forgot-password token: {e}")
+        raise HTTPException(500, f"Database error during password reset request: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/user/reset-password")
+async def reset_password(req: ResetPasswordRequest, background_tasks: BackgroundTasks):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Fetch token and expiration
+        cursor.execute("SELECT token, expires_at FROM password_resets WHERE email = %s", (req.email,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(400, "No active password reset request found for this email.")
+            
+        stored_token, expires_at = row
+        
+        # 2. Verify token matches
+        if req.token != stored_token:
+            raise HTTPException(400, "Invalid reset token.")
+            
+        # 3. Verify token has not expired
+        if datetime.datetime.now() > expires_at:
+            raise HTTPException(400, "Reset token has expired. Please request another password reset.")
+            
+        # 4. Fetch user name
+        cursor.execute("SELECT name FROM users WHERE email = %s", (req.email,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            raise HTTPException(404, "User not found")
+        name = user_row[0]
+        
+        # 5. Update user password
+        cursor.execute("UPDATE users SET password = %s WHERE email = %s", (req.password, req.email))
+        
+        # 6. Delete reset record
+        cursor.execute("DELETE FROM password_resets WHERE email = %s", (req.email,))
+        conn.commit()
+        
+        # 7. Trigger confirmation email in background
+        background_tasks.add_task(send_password_reset_confirmation_email, req.email, name)
+        
+        return {"message": "Your password has been successfully reset. You may now login."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reset password: {e}")
+        raise HTTPException(500, f"Database error during password reset execution: {e}")
     finally:
         if cursor: cursor.close()
         if conn: conn.close()

@@ -37,10 +37,7 @@ const handler = NextAuth({
           }
         }
 
-        // If it's the first time we see this email, send the welcome email
-        if (isFirstLogin && email !== "unknown") {
-          await sendWelcomeEmail(email, name);
-        }
+
 
         // Log the sign-in event
         const logLine = `"${timestamp}","${email}","${name}","${provider}"\n`;
