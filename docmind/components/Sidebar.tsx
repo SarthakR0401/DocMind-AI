@@ -32,6 +32,7 @@ interface SidebarProps {
   activeWorkspaceId: string | null
   setActiveWorkspaceId: (id: string | null) => void
   onCreateWorkspace: (name: string) => void
+  onDeleteWorkspace: (id: string) => void
 }
 
 function fmtNum(n: number) {
@@ -41,7 +42,8 @@ function fmtNum(n: number) {
 export default function Sidebar({
   user, view, setView, pdfName, pdfPages, wordCount,
   archiveCount, onPdfLoad, onSave, onClear, onLogout, onStartTour, hasMessages, open, setOpen,
-  expiryHours, setExpiryHours, workspaces, activeWorkspaceId, setActiveWorkspaceId, onCreateWorkspace
+  expiryHours, setExpiryHours, workspaces, activeWorkspaceId, setActiveWorkspaceId, onCreateWorkspace,
+  onDeleteWorkspace
 }: SidebarProps) {
   const [dragging, setDragging] = useState(false)
   const [saveToast, setSaveToast] = useState(false)
@@ -240,15 +242,31 @@ export default function Sidebar({
               <span>📂 All Documents</span>
             </button>
             {workspaces.map((ws) => (
-              <button
+              <div
                 key={ws.id}
-                onClick={() => setActiveWorkspaceId(ws.id)}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeWorkspaceId === ws.id ? 'bg-[var(--violet)] text-white' : 'text-[var(--text)] hover:bg-[var(--surface)]'
                 }`}
               >
-                <span className="truncate">📁 {ws.name}</span>
-              </button>
+                <button
+                  onClick={() => setActiveWorkspaceId(ws.id)}
+                  className="flex-1 text-left truncate flex items-center gap-2 cursor-pointer"
+                >
+                  <span>📁 {ws.name}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm(`Are you sure you want to delete workspace "${ws.name}"? All documents inside it will be permanently deleted.`)) {
+                      onDeleteWorkspace(ws.id)
+                    }
+                  }}
+                  className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/10 dark:hover:bg-white/10 rounded cursor-pointer flex items-center justify-center"
+                  title="Delete Workspace"
+                >
+                  <Trash2 size={12} className={activeWorkspaceId === ws.id ? 'text-white' : 'text-rose-500'} />
+                </button>
+              </div>
             ))}
           </div>
         </div>

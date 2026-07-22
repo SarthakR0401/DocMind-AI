@@ -997,6 +997,26 @@ async def create_workspace(req: WorkspaceCreateRequest):
         if cursor: cursor.close()
         if conn: conn.close()
 
+@app.delete("/api/workspaces/{workspace_id}")
+async def delete_workspace(workspace_id: str):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Delete workspace
+        cursor.execute("DELETE FROM workspaces WHERE id = %s", (workspace_id,))
+        # Cascaded delete sessions in this workspace
+        cursor.execute("DELETE FROM chat_sessions WHERE workspace_id = %s", (workspace_id,))
+        conn.commit()
+        return {"message": "Workspace and associated documents deleted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to delete workspace: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
 @app.post("/api/workspaces/chat")
 async def workspace_chat(req: WorkspaceChatRequest):
     conn = None

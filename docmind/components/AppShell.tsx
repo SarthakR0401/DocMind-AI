@@ -469,6 +469,32 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     }
   }
 
+  const handleDeleteWorkspace = async (id: string) => {
+    try {
+      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      const res = await fetch(`${apiUrl}/api/workspaces/${id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        setWorkspaces(prev => prev.filter(ws => ws.id !== id))
+        if (activeWorkspaceId === id) {
+          setActiveWorkspaceId(null)
+          setMessages([])
+          setPdfName(null)
+          setPdfUrl(null)
+        }
+        const listRes = await fetch(`${apiUrl}/api/chats/${encodeURIComponent(user.email)}`)
+        if (listRes.ok) {
+          const data = await listRes.json()
+          setChatArchive(data)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete workspace:", err)
+    }
+  }
+
   const saveChat = async (customMessages?: Message[]) => {
     const msgsToSave = customMessages || messages;
     if (!msgsToSave.length) return
@@ -606,6 +632,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
           activeWorkspaceId={activeWorkspaceId}
           setActiveWorkspaceId={setActiveWorkspaceId}
           onCreateWorkspace={handleCreateWorkspace}
+          onDeleteWorkspace={handleDeleteWorkspace}
         />
       </div>
 
