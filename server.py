@@ -116,6 +116,7 @@ def initialize_db_pool():
                     timestamp VARCHAR(255) NOT NULL,
                     count INT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expiry_hours INT DEFAULT NULL,
                     FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
                 )
             """)
@@ -141,6 +142,15 @@ def initialize_db_pool():
                     INDEX idx_email (email)
                 )
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workspaces (
+                    id VARCHAR(255) PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
+                )
+            """)
             # Run alter table commands safely to migate existing databases
             for tbl in ["logins", "page_views"]:
                 try:
@@ -151,6 +161,14 @@ def initialize_db_pool():
                     cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN city VARCHAR(100) DEFAULT NULL")
                 except Exception:
                     pass
+            try:
+                cursor.execute("ALTER TABLE chat_sessions ADD COLUMN expiry_hours INT DEFAULT NULL")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE chat_sessions ADD COLUMN workspace_id VARCHAR(255) DEFAULT NULL")
+            except Exception:
+                pass
             conn.commit()
             cursor.close()
             conn.close()
@@ -401,6 +419,16 @@ class PageViewRequest(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
 
+class WorkspaceCreateRequest(BaseModel):
+    id: str
+    name: str
+    email: str
+
+class WorkspaceChatRequest(BaseModel):
+    question: str
+    workspace_id: str
+    history: list[dict] = []
+
 class ChatSessionSaveRequest(BaseModel):
     id: str
     email: str
@@ -412,6 +440,8 @@ class ChatSessionSaveRequest(BaseModel):
     messages: list[dict] = []
     timestamp: str
     count: int
+    expiry_hours: int | None = None
+    workspace_id: str | None = None
 
 @app.post("/api/auth/signup")
 async def signup(req: AuthRequest, background_tasks: BackgroundTasks, request: Request):
@@ -734,7 +764,7 @@ async def get_chats(email: str):
         conn = get_db_connection()
         cursor = conn.cursor()
         sql = """
-            SELECT id, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count 
+            SELECT id, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count, expiry_hours, workspace_id 
             FROM chat_sessions 
             WHERE email = %s
         """
@@ -743,7 +773,7 @@ async def get_chats(email: str):
         
         sessions = []
         for row in rows:
-            sid, pdf_name, pdf_pages, word_count, chunks_str, messages_str, timestamp, count = row
+            sid, pdf_name, pdf_pages, word_count, chunks_str, messages_str, timestamp, count, expiry_hours, workspace_id = row
             sessions.append({
                 "id": sid,
                 "pdf": pdf_name,
@@ -753,7 +783,9 @@ async def get_chats(email: str):
                 "chunks": json.loads(chunks_str) if chunks_str else [],
                 "messages": json.loads(messages_str) if messages_str else [],
                 "timestamp": timestamp,
-                "count": count
+                "count": count,
+                "expiry_hours": expiry_hours,
+                "workspace_id": workspace_id
             })
         return sessions
     except Exception as e:
@@ -775,12 +807,14 @@ async def save_chat(req: ChatSessionSaveRequest):
         messages_str = json.dumps(req.messages)
         
         sql = """
-            INSERT INTO chat_sessions (id, email, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO chat_sessions (id, email, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count, expiry_hours, workspace_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE 
                 messages = VALUES(messages), 
                 count = VALUES(count), 
-                timestamp = VALUES(timestamp)
+                timestamp = VALUES(timestamp),
+                expiry_hours = VALUES(expiry_hours),
+                workspace_id = VALUES(workspace_id)
         """
         cursor.execute(sql, (
             req.id, 
@@ -791,7 +825,9 @@ async def save_chat(req: ChatSessionSaveRequest):
             chunks_str, 
             messages_str, 
             req.timestamp, 
-            req.count
+            req.count,
+            req.expiry_hours,
+            req.workspace_id
         ))
         conn.commit()
         return {"message": "Chat session saved successfully"}
@@ -827,7 +863,7 @@ async def get_chat_session(session_id: str):
         conn = get_db_connection()
         cursor = conn.cursor()
         sql = """
-            SELECT id, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count 
+            SELECT id, pdf_name, pdf_pages, word_count, chunks, messages, timestamp, count, expiry_hours, workspace_id 
             FROM chat_sessions 
             WHERE id = %s
         """
@@ -836,7 +872,7 @@ async def get_chat_session(session_id: str):
         if not row:
             raise HTTPException(404, "Chat session not found")
             
-        sid, pdf_name, pdf_pages, word_count, chunks_str, messages_str, timestamp, count = row
+        sid, pdf_name, pdf_pages, word_count, chunks_str, messages_str, timestamp, count, expiry_hours, workspace_id = row
         return {
             "id": sid,
             "pdf": pdf_name,
@@ -845,7 +881,9 @@ async def get_chat_session(session_id: str):
             "chunks": json.loads(chunks_str) if chunks_str else [],
             "messages": json.loads(messages_str) if messages_str else [],
             "timestamp": timestamp,
-            "count": count
+            "count": count,
+            "expiry_hours": expiry_hours,
+            "workspace_id": workspace_id
         }
     except HTTPException:
         raise
@@ -888,12 +926,13 @@ async def root():
 async def upload_pdf(file: UploadFile = File(...)):
     logger.info(f"📤 Upload request received for file: {file.filename}")
     try:
-        text, page_count = load_pdf(file.file)
-        if not text:
+        pages, page_count = load_pdf(file.file)
+        total_text_len = sum(len(p[0]) for p in pages)
+        if total_text_len == 0:
             logger.warning(f"❌ Text extraction failed for {file.filename}")
             raise HTTPException(400, "Could not extract text from PDF. It might be empty or image-based.")
         
-        chunks = chunk_text(text)
+        chunks = chunk_text(pages)
         logger.info(f"✅ Extracted {page_count} pages and created {len(chunks)} chunks.")
         return {"chunks": chunks, "page_count": page_count, "filename": file.filename}
     except Exception as e:
@@ -916,6 +955,115 @@ async def chat_endpoint(req: ChatRequest):
     except Exception as e:
         logger.error(f"🚨 Chat error: {str(e)}")
         raise HTTPException(500, f"AI logic failed: {str(e)}")
+
+# ── 3. Workspaces ──────────────────────────────────────────────────────────────
+@app.get("/api/workspaces/{email}")
+async def get_workspaces(email: str):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, name, email, created_at FROM workspaces WHERE email = %s ORDER BY created_at DESC", (email,))
+        rows = cursor.fetchall()
+        for row in rows:
+            if row["created_at"]:
+                row["created_at"] = row["created_at"].isoformat()
+        return rows
+    except Exception as e:
+        logger.error(f"Failed to fetch workspaces: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/workspaces")
+async def create_workspace(req: WorkspaceCreateRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO workspaces (id, name, email) VALUES (%s, %s, %s)",
+            (req.id, req.name, req.email)
+        )
+        conn.commit()
+        return {"message": "Workspace created successfully", "id": req.id}
+    except Exception as e:
+        logger.error(f"Failed to create workspace: {e}")
+        raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/workspaces/chat")
+async def workspace_chat(req: WorkspaceChatRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT chunks FROM chat_sessions WHERE workspace_id = %s", (req.workspace_id,))
+        rows = cursor.fetchall()
+        
+        all_chunks = []
+        for row in rows:
+            chunks_str = row[0]
+            if chunks_str:
+                try:
+                    chunks_list = json.loads(chunks_str)
+                    if isinstance(chunks_list, list):
+                        all_chunks.extend(chunks_list)
+                except Exception:
+                    pass
+                    
+        if not all_chunks:
+            raise HTTPException(400, "No documents or chat sessions found in this workspace to query.")
+            
+        return StreamingResponse(
+            stream_llm_with_context(req.question, all_chunks, req.history),
+            media_type="text/event-stream"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Workspace chat error: {e}")
+        raise HTTPException(500, f"AI workspace chat failed: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+import threading
+import time
+
+def cleanup_expired_sessions_loop():
+    logger.info("⏰ Starting daemon loop for cleaning up expired PDF chat sessions...")
+    while True:
+        try:
+            conn = get_db_connection()
+            if conn:
+                cursor = conn.cursor()
+                # Run cleanup query
+                cursor.execute("""
+                    DELETE FROM chat_sessions 
+                    WHERE expiry_hours IS NOT NULL 
+                    AND NOW() > DATE_ADD(created_at, INTERVAL expiry_hours HOUR)
+                """)
+                deleted = cursor.rowcount
+                if deleted > 0:
+                    logger.info(f"🧹 Cleaned up {deleted} expired PDF chat sessions from database.")
+                conn.commit()
+                cursor.close()
+                conn.close()
+        except Exception as e:
+            logger.error(f"Expired sessions cleanup iteration failed: {e}")
+        time.sleep(300) # Run every 5 minutes
+
+@app.on_event("startup")
+async def startup_event():
+    cleanup_thread = threading.Thread(target=cleanup_expired_sessions_loop, daemon=True)
+    cleanup_thread.start()
 
 if __name__ == "__main__":
     import uvicorn

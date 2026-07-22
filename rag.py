@@ -88,42 +88,118 @@ def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
         _hf_api_available = False
         return None
 
-def load_pdf(file_obj) -> tuple[str, int]:
+def extract_ocr_from_page(fitz_page, page_num: int) -> str:
+    """Try pytesseract local OCR first, then fall back to ocr.space API."""
+    # 1. Try local pytesseract OCR
     try:
-        if isinstance(file_obj, bytes):
-            file_obj = io.BytesIO(file_obj)
-        elif hasattr(file_obj, "read"):
-            file_obj = io.BytesIO(file_obj.read())
+        import pytesseract
+        from PIL import Image
+        pix = fitz_page.get_pixmap()
+        img_bytes = pix.tobytes("png")
+        img = Image.open(io.BytesIO(img_bytes))
+        text = pytesseract.image_to_string(img)
+        if text.strip():
+            print(f"OCR: Successfully extracted text locally for page {page_num} using pytesseract.")
+            return text
+    except Exception:
+        pass
 
-        doc = fitz.open(stream=file_obj, filetype="pdf")
-        full_text = ""
-        for page in doc:
-            text = page.get_text()
-            if not text.strip():
-                pix = page.get_pixmap()
-                img_bytes = pix.tobytes("png")
-                payload = {'apikey': 'helloworld', 'language': 'eng'}
-                res = http_session.post('https://api.ocr.space/parse/image', files={'filename': ('page.png', img_bytes)}, data=payload, timeout=15)
-                result = res.json()
-                if result.get('ParsedResults'):
-                    text = result['ParsedResults'][0].get('ParsedText', '')
-            full_text += text + "\n"
-        
-        page_count = len(doc)
-        doc.close()
-        return full_text, page_count
+    # 2. Fallback to ocr.space API
+    try:
+        api_key = os.getenv("OCR_SPACE_API_KEY", "helloworld")
+        pix = fitz_page.get_pixmap()
+        img_bytes = pix.tobytes("png")
+        payload = {'apikey': api_key, 'language': 'eng'}
+        res = http_session.post('https://api.ocr.space/parse/image', files={'filename': ('page.png', img_bytes)}, data=payload, timeout=15)
+        result = res.json()
+        if result.get('ParsedResults'):
+            text = result['ParsedResults'][0].get('ParsedText', '')
+            if text.strip():
+                print(f"OCR: Successfully extracted text for page {page_num} using ocr.space.")
+                return text
     except Exception as e:
-        print(f"Capture Error: {e}")
-        return "", 0
+        print(f"OCR: Failed to perform cloud OCR for page {page_num}: {e}")
+    return ""
 
-def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
-    if not text.strip(): return []
+def load_pdf(file_obj) -> tuple[list[tuple[str, int]], int]:
+    pages_data = []
+    page_count = 0
+    try:
+        # Read the file object bytes
+        if isinstance(file_obj, bytes):
+            file_bytes = file_obj
+        elif hasattr(file_obj, "read"):
+            file_bytes = file_obj.read()
+        else:
+            file_bytes = b""
+            
+        file_obj_io = io.BytesIO(file_bytes)
+        
+        # We still open with PyMuPDF to do OCR if pages are blank
+        doc = fitz.open(stream=io.BytesIO(file_bytes), filetype="pdf")
+        page_count = len(doc)
+        
+        # 1. Try to use pdfplumber for layout-aware parsing and table extraction
+        pdfplumber_success = False
+        try:
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                for idx, page in enumerate(pdf.pages):
+                    page_num = idx + 1
+                    page_text = page.extract_text() or ""
+                    
+                    # Extract tables from page
+                    tables = page.extract_tables()
+                    if tables:
+                        for table in tables:
+                            table_str = "\n[Table Start]\n"
+                            for row in table:
+                                table_str += " | ".join(str(cell or "").strip() for cell in row) + "\n"
+                            table_str += "[Table End]\n"
+                            page_text += "\n" + table_str
+                    
+                    # If text is empty, try OCR
+                    if not page_text.strip() and idx < len(doc):
+                        fitz_page = doc[idx]
+                        page_text = extract_ocr_from_page(fitz_page, page_num)
+                        
+                    pages_data.append((page_text, page_num))
+            pdfplumber_success = True
+        except Exception as pe:
+            print(f"pdfplumber layout-aware parser failed or not installed: {pe}. Falling back to standard PyMuPDF.")
+            pdfplumber_success = False
+            
+        # 2. Fallback to PyMuPDF if pdfplumber failed
+        if not pdfplumber_success:
+            pages_data = []
+            for idx, page in enumerate(doc):
+                page_num = idx + 1
+                page_text = page.get_text()
+                
+                # If text is empty, try OCR
+                if not page_text.strip():
+                    page_text = extract_ocr_from_page(page, page_num)
+                    
+                pages_data.append((page_text, page_num))
+                
+        doc.close()
+        return pages_data, page_count
+    except Exception as e:
+        print(f"PDF Capture Error: {e}")
+        return [], 0
+
+def chunk_text(pages: list[tuple[str, int]], chunk_size: int = 1000, overlap: int = 150) -> list[str]:
+    if not pages: return []
     chunks = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += chunk_size - overlap
+    for text, page_num in pages:
+        if not text.strip(): continue
+        start = 0
+        while start < len(text):
+            end = start + chunk_size
+            chunk_content = text[start:end]
+            # Prepend page marker to chunk context for citations
+            chunks.append(f"[Source: Page {page_num}] {chunk_content}")
+            start += chunk_size - overlap
     return chunks
 
 def get_context(query: str, chunks: list[str], top_k: int = 5) -> str:

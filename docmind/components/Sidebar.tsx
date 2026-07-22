@@ -5,6 +5,11 @@ import Link from 'next/link'
 import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft, Compass, BarChart2 } from 'lucide-react'
 import type { View } from './AppShell'
 
+export interface Workspace {
+  id: string
+  name: string
+}
+
 interface SidebarProps {
   user: { name: string; email: string }
   view: View
@@ -21,6 +26,12 @@ interface SidebarProps {
   hasMessages: boolean
   open: boolean
   setOpen: (v: boolean) => void
+  expiryHours: number | null
+  setExpiryHours: (v: number | null) => void
+  workspaces: Workspace[]
+  activeWorkspaceId: string | null
+  setActiveWorkspaceId: (id: string | null) => void
+  onCreateWorkspace: (name: string) => void
 }
 
 function fmtNum(n: number) {
@@ -30,6 +41,7 @@ function fmtNum(n: number) {
 export default function Sidebar({
   user, view, setView, pdfName, pdfPages, wordCount,
   archiveCount, onPdfLoad, onSave, onClear, onLogout, onStartTour, hasMessages, open, setOpen,
+  expiryHours, setExpiryHours, workspaces, activeWorkspaceId, setActiveWorkspaceId, onCreateWorkspace
 }: SidebarProps) {
   const [dragging, setDragging] = useState(false)
   const [saveToast, setSaveToast] = useState(false)
@@ -182,6 +194,65 @@ export default function Sidebar({
           </Link>
         </div>
 
+        {/* Workspaces */}
+        <SectionLabel text="Workspaces (Folders)" />
+        <div className="mx-4 mb-4 flex flex-col gap-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-2xl p-3 shadow-sm">
+          {/* Create Workspace */}
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              placeholder="New folder name..."
+              id="new-workspace-name"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const inputEl = e.currentTarget
+                  const val = inputEl.value.trim()
+                  if (val) {
+                    onCreateWorkspace(val)
+                    inputEl.value = ''
+                  }
+                }
+              }}
+              className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--violet)]"
+            />
+            <button
+              onClick={() => {
+                const el = document.getElementById('new-workspace-name') as HTMLInputElement
+                if (el && el.value.trim()) {
+                  onCreateWorkspace(el.value.trim())
+                  el.value = ''
+                }
+              }}
+              className="px-2.5 py-1 bg-[var(--violet)] text-white text-xs font-bold rounded-lg hover:bg-[var(--indigo)] transition-colors"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Workspaces List */}
+          <div className="flex flex-col gap-1 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+            <button
+              onClick={() => setActiveWorkspaceId(null)}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                activeWorkspaceId === null ? 'bg-[var(--violet)] text-white' : 'text-[var(--text)] hover:bg-[var(--surface)]'
+              }`}
+            >
+              <span>📂 All Documents</span>
+            </button>
+            {workspaces.map((ws) => (
+              <button
+                key={ws.id}
+                onClick={() => setActiveWorkspaceId(ws.id)}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                  activeWorkspaceId === ws.id ? 'bg-[var(--violet)] text-white' : 'text-[var(--text)] hover:bg-[var(--surface)]'
+                }`}
+              >
+                <span className="truncate">📁 {ws.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <Divider className="mx-4" />
 
         {/* Actions */}
@@ -238,6 +309,31 @@ export default function Sidebar({
                 <p className="text-xs" style={{ color: 'var(--muted)' }}>Click or drag & drop</p>
               </>
             )}
+          </div>
+
+          {/* Expiry Policy & HIPAA Compliance Banner */}
+          <div className="mt-3 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2 px-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Auto-Delete</label>
+              <select
+                value={expiryHours !== null ? expiryHours : 'never'}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setExpiryHours(val === 'never' ? null : parseInt(val))
+                }}
+                className="text-xs font-semibold px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] focus:outline-none focus:ring-1 focus:ring-[var(--violet)] cursor-pointer"
+                style={{ color: 'var(--text)' }}
+              >
+                <option value="never">Never (Keep)</option>
+                <option value="1">After 1 Hour</option>
+                <option value="24">After 24 Hours</option>
+              </select>
+            </div>
+
+            <div className="rounded-xl px-3 py-2 text-[10px] flex items-start gap-2 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
+              <span className="text-xs flex-shrink-0">🛡️</span>
+              <span className="leading-tight font-medium">HIPAA & GDPR Compliant: Chunks encrypted at rest, parsed in-memory, & never used for AI training.</span>
+            </div>
           </div>
 
           {/* Doc stats */}

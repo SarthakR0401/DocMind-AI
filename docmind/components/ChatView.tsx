@@ -15,6 +15,8 @@ interface ChatViewProps {
   onSave?: (customMessages?: Message[]) => void
   showPreview: boolean
   setShowPreview: (show: boolean) => void
+  activeWorkspaceId: string | null
+  workspaceName: string | null
 }
 
 export default function ChatView({ 
@@ -26,12 +28,15 @@ export default function ChatView({
   firstName, 
   onSave,
   showPreview,
-  setShowPreview
+  setShowPreview,
+  activeWorkspaceId,
+  workspaceName
 }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const handleCopyMessage = (text: string, index: number) => {
     navigator.clipboard.writeText(text)
@@ -88,10 +93,16 @@ export default function ChatView({
       const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
       
-      const res = await fetch(`${apiUrl}/api/chat`, {
+      const isWorkspaceMode = !pdfName && activeWorkspaceId;
+      const endpoint = isWorkspaceMode ? '/api/workspaces/chat' : '/api/chat';
+      const body = isWorkspaceMode 
+        ? { question, workspace_id: activeWorkspaceId, history: messages }
+        : { question, chunks, history: messages };
+        
+      const res = await fetch(`${apiUrl}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, chunks, history: messages }),
+        body: JSON.stringify(body),
       });
       
       if (!res.ok) throw new Error("API failed");
@@ -162,7 +173,7 @@ export default function ChatView({
   }
 
   // ── No document loaded ─────────────────────────────────────────────
-  if (!pdfName) {
+  if (!pdfName && !activeWorkspaceId) {
     return (
       <div className="h-full flex flex-col overflow-y-auto page-enter">
         <div className="flex-1 px-6 py-8 max-w-4xl w-full mx-auto">
@@ -245,20 +256,26 @@ export default function ChatView({
 
   // ── Document loaded, no messages yet ──────────────────────────────
   if (!messages.length && !loading) {
+    const isWorkspace = !pdfName && activeWorkspaceId;
     return (
       <div className="h-full flex flex-col page-enter">
         <div className="flex-1 overflow-y-auto px-6 py-8 max-w-4xl w-full mx-auto">
           <div className="mb-6">
-            <h2 className="font-display text-3xl mb-1.5" style={{ color: '#0F0A1E' }}>
-              Ready to chat, {firstName}!
+            <h2 className="font-display text-3xl mb-1.5" style={{ color: 'var(--text)' }}>
+              {isWorkspace ? `Workspace Co-pilot: ${workspaceName}` : `Ready to chat, ${firstName}!`}
             </h2>
           </div>
           <div className="rounded-3xl p-10 text-center mb-6"
-            style={{ background: '#FFFFFF', border: '1.5px solid #E4DEFF', boxShadow: '0 4px 24px rgba(91,33,182,0.07)' }}>
-            <div className="text-5xl mb-5 select-none animate-float">👋</div>
-            <h3 className="font-display text-2xl mb-2" style={{ color: '#0F0A1E' }}>Your document is loaded</h3>
-            <p className="text-sm leading-relaxed" style={{ color: '#6B6B99', maxWidth: 300, margin: '0 auto' }}>
-              Type your first question below and DocMind will answer based on the document content.
+            style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', boxShadow: '0 4px 24px rgba(91,33,182,0.07)' }}>
+            <div className="text-5xl mb-5 select-none animate-float">{isWorkspace ? '📁' : '👋'}</div>
+            <h3 className="font-display text-2xl mb-2" style={{ color: 'var(--text)' }}>
+              {isWorkspace ? `Querying all files in ${workspaceName}` : 'Your document is loaded'}
+            </h3>
+            <p className="text-sm leading-relaxed mx-auto" style={{ color: 'var(--muted)', maxWidth: 420 }}>
+              {isWorkspace 
+                ? 'Ask a question below to search, extract facts, and synthesize answers across all PDF documents saved in this workspace.'
+                : 'Type your first question below and DocMind will answer based on the document content.'
+              }
             </p>
           </div>
 
@@ -365,7 +382,7 @@ export default function ChatView({
               </div>
               <div className="flex-1 overflow-hidden px-2 pb-4">
                 <iframe 
-                  src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`} 
+                  src={`${pdfUrl}#page=${currentPage}&toolbar=0&navpanes=0&view=FitH`} 
                   className="w-full h-full rounded-xl border border-[var(--border)]"
                   title="PDF Preview"
                 />
@@ -417,7 +434,38 @@ export default function ChatView({
                         </div>
                         <div>
                           <div className="bubble-ai markdown-body">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            {(() => {
+                              const formatted = msg.content.replace(/\[Page (\d+)\]/g, '[Page $1](#page-$1)')
+                              return (
+                                <ReactMarkdown
+                                  components={{
+                                    a: ({ href, children }) => {
+                                      if (href?.startsWith('#page-')) {
+                                        const pageNum = parseInt(href.split('-')[1])
+                                        return (
+                                          <button
+                                            onClick={() => {
+                                              setCurrentPage(pageNum)
+                                              setShowPreview(true)
+                                            }}
+                                            className="inline-flex items-center gap-0.5 mx-1 px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-750 dark:text-indigo-400 font-bold text-[11px] align-middle shadow-sm transition-colors cursor-pointer"
+                                          >
+                                            📄 {children}
+                                          </button>
+                                        )
+                                      }
+                                      return (
+                                        <a href={href} target="_blank" rel="noopener noreferrer" className="underline text-indigo-650 hover:text-indigo-850 dark:text-indigo-400">
+                                          {children}
+                                        </a>
+                                      )
+                                    }
+                                  }}
+                                >
+                                  {formatted}
+                                </ReactMarkdown>
+                              )
+                            })()}
                           </div>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span className="font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
