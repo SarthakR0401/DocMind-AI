@@ -3,7 +3,7 @@ import logging
 import re
 import json
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -125,6 +125,8 @@ def initialize_db_pool():
                     email VARCHAR(255) NOT NULL,
                     provider VARCHAR(50) NOT NULL,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    country VARCHAR(100) DEFAULT NULL,
+                    city VARCHAR(100) DEFAULT NULL,
                     INDEX idx_email (email)
                 )
             """)
@@ -134,9 +136,21 @@ def initialize_db_pool():
                     email VARCHAR(255) DEFAULT NULL,
                     path VARCHAR(255) NOT NULL,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    country VARCHAR(100) DEFAULT NULL,
+                    city VARCHAR(100) DEFAULT NULL,
                     INDEX idx_email (email)
                 )
             """)
+            # Run alter table commands safely to migate existing databases
+            for tbl in ["logins", "page_views"]:
+                try:
+                    cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN country VARCHAR(100) DEFAULT NULL")
+                except Exception:
+                    pass
+                try:
+                    cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN city VARCHAR(100) DEFAULT NULL")
+                except Exception:
+                    pass
             conn.commit()
             cursor.close()
             conn.close()
@@ -314,6 +328,35 @@ def append_to_csv(filename, header, data_row):
     except Exception as e:
         logger.error(f"Failed to append to CSV {filename}: {e}")
 
+import requests
+
+def resolve_ip_location(ip: str):
+    """Resolve an IP address to Country and City using ip-api.com."""
+    if not ip or ip in ["127.0.0.1", "localhost", "::1"] or ip.startswith("192.168.") or ip.startswith("10.") or ip.startswith("172."):
+        return "Unknown Country", "Localhost"
+    try:
+        url = f"http://ip-api.com/json/{ip}"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "success":
+                country = data.get("country", "Unknown Country")
+                city = data.get("city", "Unknown City")
+                return country, city
+    except Exception as e:
+        logger.error(f"Failed to geolocate IP {ip}: {e}")
+    return "Unknown Country", "Unknown City"
+
+def get_client_ip(request: Request):
+    """Extract client IP addressing proxy headers first."""
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    x_real_ip = request.headers.get("X-Real-IP")
+    if x_real_ip:
+        return x_real_ip.strip()
+    return request.client.host if request.client else "127.0.0.1"
+
 class AuthRequest(BaseModel):
     email: str
     password: str
@@ -341,7 +384,7 @@ class ChatSessionSaveRequest(BaseModel):
     count: int
 
 @app.post("/api/auth/signup")
-async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
+async def signup(req: AuthRequest, background_tasks: BackgroundTasks, request: Request):
     if not is_valid_email(req.email):
         raise HTTPException(400, "Invalid email format")
     
@@ -368,9 +411,13 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
             
         conn.commit()
         
+        # Get location details
+        client_ip = get_client_ip(request)
+        country, city = resolve_ip_location(client_ip)
+        
         # Track registration in CSV
         timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
-        append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status", [timestamp, req.email, req.name, "New" if is_new_user else "Updated"])
+        append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status,Country,City", [timestamp, req.email, req.name, "New" if is_new_user else "Updated", country, city])
         
         if is_new_user:
             # Send welcome email only to brand new users
@@ -387,7 +434,7 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
         if conn: conn.close()
 
 @app.post("/api/auth/login")
-async def login(req: AuthRequest):
+async def login(req: AuthRequest, request: Request):
     conn = None
     cursor = None
     try:
@@ -404,16 +451,23 @@ async def login(req: AuthRequest):
         if password != req.password:
             raise HTTPException(401, "Invalid credentials")
             
+        # Get client IP and resolve location
+        client_ip = get_client_ip(request)
+        country, city = resolve_ip_location(client_ip)
+            
         # Log login to DB logins table
         try:
-            cursor.execute("INSERT INTO logins (email, provider) VALUES (%s, %s)", (email, "credentials"))
+            cursor.execute(
+                "INSERT INTO logins (email, provider, country, city) VALUES (%s, %s, %s, %s)", 
+                (email, "credentials", country, city)
+            )
             conn.commit()
         except Exception as log_err:
             logger.error(f"Failed to log login in DB: {log_err}")
             
         # Log login to CSV file
         timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
-        append_to_csv("login_records.csv", "Timestamp,Email,Name,Provider", [timestamp, email, name, "credentials"])
+        append_to_csv("login_records.csv", "Timestamp,Email,Name,Provider,Country,City", [timestamp, email, name, "credentials", country, city])
             
         return {"message": "Login successful", "user": {"email": email, "name": name}}
     except HTTPException:
@@ -426,12 +480,16 @@ async def login(req: AuthRequest):
         if conn: conn.close()
 
 @app.post("/api/analytics/login")
-async def log_oauth_login(req: OAuthLoginRequest):
+async def log_oauth_login(req: OAuthLoginRequest, request: Request):
     conn = None
     cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Get client IP and resolve location
+        client_ip = get_client_ip(request)
+        country, city = resolve_ip_location(client_ip)
         
         # Make sure user exists in users table (insert or update)
         cursor.execute("SELECT email FROM users WHERE email = %s", (req.email,))
@@ -442,15 +500,18 @@ async def log_oauth_login(req: OAuthLoginRequest):
             cursor.execute("INSERT INTO users (email, name, password) VALUES (%s, %s, %s)", (req.email, req.name, "oauth_authenticated"))
             # Track signup in CSV
             timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
-            append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status", [timestamp, req.email, req.name, "OAuth_New"])
+            append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status,Country,City", [timestamp, req.email, req.name, "OAuth_New", country, city])
             
         # Log login in DB logins table
-        cursor.execute("INSERT INTO logins (email, provider) VALUES (%s, %s)", (req.email, req.provider))
+        cursor.execute(
+            "INSERT INTO logins (email, provider, country, city) VALUES (%s, %s, %s, %s)", 
+            (req.email, req.provider, country, city)
+        )
         conn.commit()
         
         # Log login to CSV file
         timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
-        append_to_csv("login_records.csv", "Timestamp,Email,Name,Provider", [timestamp, req.email, req.name, req.provider])
+        append_to_csv("login_records.csv", "Timestamp,Email,Name,Provider,Country,City", [timestamp, req.email, req.name, req.provider, country, city])
         
         return {"message": "OAuth login logged successfully"}
     except Exception as e:
@@ -461,18 +522,26 @@ async def log_oauth_login(req: OAuthLoginRequest):
         if conn: conn.close()
 
 @app.post("/api/analytics/pageview")
-async def log_pageview(req: PageViewRequest):
+async def log_pageview(req: PageViewRequest, request: Request):
     conn = None
     cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO page_views (email, path) VALUES (%s, %s)", (req.email, req.path))
+        
+        # Get client IP and resolve location
+        client_ip = get_client_ip(request)
+        country, city = resolve_ip_location(client_ip)
+        
+        cursor.execute(
+            "INSERT INTO page_views (email, path, country, city) VALUES (%s, %s, %s, %s)", 
+            (req.email, req.path, country, city)
+        )
         conn.commit()
         
         # Log to page_views.csv
         timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
-        append_to_csv("page_views.csv", "Timestamp,Email,Path", [timestamp, req.email or "anonymous", req.path])
+        append_to_csv("page_views.csv", "Timestamp,Email,Path,Country,City", [timestamp, req.email or "anonymous", req.path, country, city])
         
         return {"message": "Page view logged successfully"}
     except Exception as e:
@@ -528,7 +597,7 @@ async def get_admin_stats(authorization: str | None = Header(None)):
         
         # 4. Recent Logins list (last 50)
         cursor.execute("""
-            SELECT l.email, l.provider, l.timestamp, u.name 
+            SELECT l.email, l.provider, l.timestamp, l.country, l.city, u.name 
             FROM logins l 
             LEFT JOIN users u ON l.email = u.email 
             ORDER BY l.id DESC LIMIT 50
@@ -552,7 +621,7 @@ async def get_admin_stats(authorization: str | None = Header(None)):
         
         # 7. Recent Page Views (last 50)
         cursor.execute("""
-            SELECT pv.email, pv.path, pv.timestamp, u.name 
+            SELECT pv.email, pv.path, pv.timestamp, pv.country, pv.city, u.name 
             FROM page_views pv 
             LEFT JOIN users u ON pv.email = u.email 
             ORDER BY pv.id DESC LIMIT 50
@@ -561,6 +630,47 @@ async def get_admin_stats(authorization: str | None = Header(None)):
         for row in recent_page_views:
             if row["timestamp"]:
                 row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+                
+        # 8. Country breakdown of page views
+        cursor.execute("""
+            SELECT COALESCE(country, 'Unknown') as country, COUNT(*) as count 
+            FROM page_views 
+            GROUP BY country 
+            ORDER BY count DESC 
+            LIMIT 10
+        """)
+        country_summary = cursor.fetchall()
+        
+        # 9. Daily activity over the last 7 days
+        cursor.execute("""
+            SELECT DATE(timestamp) as date_val, COUNT(*) as views 
+            FROM page_views 
+            WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            GROUP BY DATE(timestamp)
+            ORDER BY DATE(timestamp) ASC
+        """)
+        activity_rows = cursor.fetchall()
+        
+        # Fill missing days with 0 views to ensure a smooth 7-day line chart
+        import datetime as dt_mod
+        daily_activity = []
+        activity_dict = {}
+        for row in activity_rows:
+            d_val = row["date_val"]
+            if isinstance(d_val, dt_mod.date):
+                d_str = d_val.strftime("%Y-%m-%d")
+            elif isinstance(d_val, str):
+                d_str = d_val.split(" ")[0]
+            else:
+                d_str = str(d_val)
+            activity_dict[d_str] = row["views"]
+            
+        for i in range(6, -1, -1):
+            day = (dt_mod.date.today() - dt_mod.timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_activity.append({
+                "date": day,
+                "views": activity_dict.get(day, 0)
+            })
         
         return {
             "total_views": total_views,
@@ -569,7 +679,9 @@ async def get_admin_stats(authorization: str | None = Header(None)):
             "recent_logins": recent_logins,
             "recent_users": recent_users,
             "path_summary": path_summary,
-            "recent_page_views": recent_page_views
+            "recent_page_views": recent_page_views,
+            "country_summary": country_summary,
+            "daily_activity": daily_activity
         }
     except Exception as e:
         logger.error(f"Failed to fetch admin stats: {e}")

@@ -25,6 +25,8 @@ interface Stats {
     provider: string
     timestamp: string
     name: string | null
+    country: string | null
+    city: string | null
   }>
   recent_users: Array<{
     email: string
@@ -40,6 +42,16 @@ interface Stats {
     path: string
     timestamp: string
     name: string | null
+    country: string | null
+    city: string | null
+  }>
+  country_summary: Array<{
+    country: string
+    count: number
+  }>
+  daily_activity: Array<{
+    date: string
+    views: number
   }>
 }
 
@@ -223,6 +235,29 @@ export default function AnalyticsDashboard() {
     )
   }
 
+  // Daily activity SVG chart calculations
+  const activityData = stats?.daily_activity || []
+  const maxViews = Math.max(...activityData.map(d => d.views), 10)
+  const chartWidth = 500
+  const chartHeight = 200
+  const chartPadding = 40
+  
+  const chartPoints = activityData.map((d, i) => {
+    const x = chartPadding + (i * (chartWidth - 2 * chartPadding)) / Math.max(activityData.length - 1, 1)
+    const y = chartHeight - chartPadding - (d.views * (chartHeight - 2 * chartPadding)) / maxViews
+    return { x, y, views: d.views, date: d.date }
+  })
+  
+  const linePathD = chartPoints.length > 0 
+    ? `M ${chartPoints[0].x} ${chartPoints[0].y} ` + chartPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')
+    : ''
+    
+  const fillPathD = chartPoints.length > 0
+    ? `${linePathD} L ${chartPoints[chartPoints.length - 1].x} ${chartHeight - chartPadding} L ${chartPoints[0].x} ${chartHeight - chartPadding} Z`
+    : ''
+    
+  const totalCountryViews = stats?.country_summary?.reduce((sum, c) => sum + c.count, 0) || 1
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] transition-colors duration-300">
       
@@ -307,6 +342,130 @@ export default function AnalyticsDashboard() {
             </div>
           </div>
 
+        </section>
+
+        {/* ── Visual Analytics Section (SVG Charts & Geolocation) ─────────────── */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* Daily Activity Chart Card */}
+          <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-3">
+              <Activity className="h-5 w-5 text-indigo-500" />
+              <h2 className="text-base font-bold">Daily Page Views (Last 7 Days)</h2>
+              <span className="ml-auto text-xs px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-full font-medium">Activity Trend</span>
+            </div>
+            
+            <div className="w-full flex items-center justify-center py-2">
+              {activityData.length > 0 ? (
+                <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto overflow-visible select-none">
+                  <defs>
+                    <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Grid Lines */}
+                  <line x1={chartPadding} y1={chartPadding} x2={chartWidth - chartPadding} y2={chartPadding} stroke="#E2E8F0" strokeDasharray="3 3" className="dark:stroke-gray-800" strokeWidth="1" />
+                  <line x1={chartPadding} y1={(chartHeight) / 2} x2={chartWidth - chartPadding} y2={(chartHeight) / 2} stroke="#E2E8F0" strokeDasharray="3 3" className="dark:stroke-gray-800" strokeWidth="1" />
+                  <line x1={chartPadding} y1={chartHeight - chartPadding} x2={chartWidth - chartPadding} y2={chartHeight - chartPadding} stroke="#94A3B8" className="dark:stroke-gray-700" strokeWidth="1.5" />
+                  
+                  {/* Grid Line Y-Axis labels */}
+                  <text x={chartPadding - 10} y={chartPadding + 4} textAnchor="end" className="text-[10px] font-semibold fill-gray-400 dark:fill-gray-500">{maxViews}</text>
+                  <text x={chartPadding - 10} y={(chartHeight) / 2 + 4} textAnchor="end" className="text-[10px] font-semibold fill-gray-400 dark:fill-gray-500">{Math.round(maxViews / 2)}</text>
+                  <text x={chartPadding - 10} y={chartHeight - chartPadding + 4} textAnchor="end" className="text-[10px] font-semibold fill-gray-400 dark:fill-gray-500">0</text>
+                  
+                  {/* Area fill */}
+                  <path d={fillPathD} fill="url(#chart-grad)" />
+                  
+                  {/* Line */}
+                  <path d={linePathD} fill="none" stroke="#4F46E5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  
+                  {/* Dots & Labels */}
+                  {chartPoints.map((p, i) => (
+                    <g key={i} className="group cursor-pointer">
+                      <circle 
+                        cx={p.x} 
+                        cy={p.y} 
+                        r="4" 
+                        fill="#FFFFFF" 
+                        stroke="#4F46E5" 
+                        strokeWidth="2.5" 
+                        className="transition-all hover:r-6 hover:fill-[#4F46E5]" 
+                      />
+                      {/* Tooltip on hover */}
+                      <rect 
+                        x={p.x - 22} 
+                        y={p.y - 30} 
+                        width="44" 
+                        height="20" 
+                        rx="6" 
+                        fill="#0F172A" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" 
+                      />
+                      <text 
+                        x={p.x} 
+                        y={p.y - 16} 
+                        textAnchor="middle" 
+                        className="text-[10px] font-bold fill-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                      >
+                        {p.views}
+                      </text>
+                      
+                      {/* X Axis Labels */}
+                      <text 
+                        x={p.x} 
+                        y={chartHeight - chartPadding + 18} 
+                        textAnchor="middle" 
+                        className="text-[9px] font-semibold fill-gray-400 dark:fill-gray-500"
+                      >
+                        {p.date.substring(5)}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              ) : (
+                <div className="py-12 text-center text-gray-400 text-xs">No daily activity data recorded yet</div>
+              )}
+            </div>
+          </div>
+          
+          {/* Geolocation Country breakdown */}
+          <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-3">
+              <Globe className="h-5 w-5 text-blue-500" />
+              <h2 className="text-base font-bold">Top Countries (Visitor Geolocation)</h2>
+              <span className="ml-auto text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full font-medium">Locations Map</span>
+            </div>
+            
+            <div className="flex flex-col gap-4 mt-2">
+              {stats?.country_summary && stats.country_summary.length > 0 ? (
+                stats.country_summary.map((c, i) => {
+                  const pct = Math.round((c.count / totalCountryViews) * 100)
+                  return (
+                    <div key={i} className="flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                          {c.country}
+                        </span>
+                        <span className="text-gray-450">{c.count} views ({pct}%)</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                          style={{ width: `${pct}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="py-12 text-center text-gray-400 text-xs">No location records tracked yet</div>
+              )}
+            </div>
+          </div>
+          
         </section>
 
         {/* ── Table Grid Section ─────────────────────────────────────────────── */}
@@ -400,6 +559,7 @@ export default function AnalyticsDashboard() {
                   <th className="pb-3">User Name</th>
                   <th className="pb-3">Email Address</th>
                   <th className="pb-3">Auth Provider</th>
+                  <th className="pb-3">Location</th>
                   <th className="pb-3 text-right">Login Time</th>
                 </tr>
               </thead>
@@ -418,12 +578,15 @@ export default function AnalyticsDashboard() {
                           {log.provider === 'google' ? 'Google' : 'Credentials'}
                         </span>
                       </td>
+                      <td className="py-3 text-xs text-gray-500 dark:text-gray-400">
+                        {log.city && log.country ? `${log.city}, ${log.country}` : 'Localhost / Unknown'}
+                      </td>
                       <td className="py-3 text-right text-xs text-gray-400 font-mono">{log.timestamp}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No user logins recorded yet</td>
+                    <td colSpan={5} className="py-8 text-center text-gray-400 text-sm">No user logins recorded yet</td>
                   </tr>
                 )}
               </tbody>
@@ -447,6 +610,7 @@ export default function AnalyticsDashboard() {
                   <th className="pb-3">User Name</th>
                   <th className="pb-3">Email / Gmail ID</th>
                   <th className="pb-3">Path / Route</th>
+                  <th className="pb-3">Location</th>
                   <th className="pb-3 text-right">Access Time</th>
                 </tr>
               </thead>
@@ -459,12 +623,15 @@ export default function AnalyticsDashboard() {
                       <td className="py-3">
                         <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400">{pv.path}</span>
                       </td>
+                      <td className="py-3 text-xs text-gray-500 dark:text-gray-400">
+                        {pv.city && pv.country ? `${pv.city}, ${pv.country}` : 'Localhost / Unknown'}
+                      </td>
                       <td className="py-3 text-right text-xs text-gray-400 font-mono">{pv.timestamp}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No page views recorded yet</td>
+                    <td colSpan={5} className="py-8 text-center text-gray-400 text-sm">No page views recorded yet</td>
                   </tr>
                 )}
               </tbody>
