@@ -144,7 +144,7 @@ export default function AnalyticsDashboard() {
             <div>
               <h1 className="text-xl font-bold tracking-tight">Access Denied</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                Only the administrator account (<span className="font-semibold text-indigo-600 dark:text-indigo-400">sarthakrathi04@gmail.com</span>) is allowed to view this console.
+                Only the authorized administrator account is allowed to view this console.
               </p>
             </div>
           </div>
