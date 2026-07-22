@@ -227,12 +227,45 @@ def force_ipv4():
     finally:
         socket.getaddrinfo = original_getaddrinfo
 
-def send_custom_email(email, subject, html):
+def send_custom_email(email, subject, html, action, token=None, origin=None):
+    # 1. Attempt to send via Next.js Vercel mail proxy first (bypasses Render SMTP port blocking)
+    try:
+        import requests
+        secret = os.getenv("NEXTAUTH_SECRET", "f63c8112c3f8e9185a676c5b76fc8df1")
+        base_url = origin or os.getenv("NEXTAUTH_URL", "https://docminds-ai.vercel.app")
+        if base_url.endswith("/"):
+            base_url = base_url[:-1]
+            
+        api_url = f"{base_url}/api/auth/send-mail"
+        logger.info(f"Attempting to proxy email sending via Next.js Vercel endpoint: {api_url}")
+        
+        payload = {
+            "action": action,
+            "email": email,
+            "name": email.split('@')[0],
+            "token": token
+        }
+        
+        res = requests.post(
+            api_url,
+            json=payload,
+            headers={"Authorization": f"Bearer {secret}"},
+            timeout=8
+        )
+        if res.status_code == 200:
+            logger.info(f"✅ Email successfully proxied and sent via Vercel for action: {action}")
+            return True
+        else:
+            logger.warning(f"⚠️ Vercel proxy email failed (status {res.status_code}): {res.text}. Falling back to direct SMTP.")
+    except Exception as proxy_err:
+        logger.warning(f"⚠️ Exception occurred during Vercel email proxy: {proxy_err}. Falling back to direct SMTP.")
+
+    # 2. Fallback to direct SMTP (only if proxy failed or was skipped)
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASS")
     
     if not smtp_user or not smtp_pass:
-        logger.warning(f"⚠️ SMTP credentials missing. Skipping email: {subject}")
+        logger.warning(f"⚠️ SMTP credentials missing. Skipping direct email: {subject}")
         return False
 
     try:
@@ -249,18 +282,15 @@ def send_custom_email(email, subject, html):
         last_error = None
 
         with force_ipv4():
-            # If SMTP_PORT is explicitly specified, try it first
             if smtp_port_env:
                 try:
                     port = int(smtp_port_env)
                     if port == 465:
-                        logger.info(f"Attempting to send email via SMTP_SSL on {smtp_host}:{port}...")
                         with smtplib.SMTP_SSL(smtp_host, port, timeout=10) as server:
                             server.login(smtp_user, smtp_pass)
                             server.sendmail(smtp_user, email, msg.as_string())
                         sent = True
                     else:
-                        logger.info(f"Attempting to send email via SMTP STARTTLS on {smtp_host}:{port}...")
                         with smtplib.SMTP(smtp_host, port, timeout=10) as server:
                             server.ehlo()
                             server.starttls()
@@ -268,33 +298,22 @@ def send_custom_email(email, subject, html):
                             server.login(smtp_user, smtp_pass)
                             server.sendmail(smtp_user, email, msg.as_string())
                         sent = True
-                except smtplib.SMTPAuthenticationError as auth_err:
-                    logger.error(f"❌ SMTP Authentication failed: {auth_err}")
-                    return False
                 except Exception as e:
-                    logger.warning(f"⚠️ Configured SMTP sending on port {smtp_port_env} failed: {e}")
                     last_error = e
 
-            # If not sent yet, try default SMTP ports in cascade
             if not sent:
-                # 1. Try port 465 (SSL)
+                # SSL (465) fallback
                 try:
-                    logger.info(f"Attempting SMTP_SSL on {smtp_host}:465...")
                     with smtplib.SMTP_SSL(smtp_host, 465, timeout=10) as server:
                         server.login(smtp_user, smtp_pass)
                         server.sendmail(smtp_user, email, msg.as_string())
                     sent = True
-                except smtplib.SMTPAuthenticationError as auth_err:
-                    logger.error(f"❌ SMTP Authentication failed during SSL fallback: {auth_err}")
-                    return False
                 except Exception as e_ssl:
-                    logger.warning(f"⚠️ SMTP_SSL on port 465 failed: {e_ssl}")
                     last_error = e_ssl
 
-                # 2. Try port 587 (STARTTLS)
+                # STARTTLS (587) fallback
                 if not sent:
                     try:
-                        logger.info(f"Attempting SMTP STARTTLS on {smtp_host}:587...")
                         with smtplib.SMTP(smtp_host, 587, timeout=10) as server:
                             server.ehlo()
                             server.starttls()
@@ -302,24 +321,20 @@ def send_custom_email(email, subject, html):
                             server.login(smtp_user, smtp_pass)
                             server.sendmail(smtp_user, email, msg.as_string())
                         sent = True
-                    except smtplib.SMTPAuthenticationError as auth_err:
-                        logger.error(f"❌ SMTP Authentication failed during STARTTLS fallback: {auth_err}")
-                        return False
                     except Exception as e_tls:
-                        logger.warning(f"⚠️ SMTP STARTTLS on port 587 failed: {e_tls}")
                         last_error = e_tls
 
         if sent:
-            logger.info(f"✅ Email '{subject}' successfully sent to {email}")
+            logger.info(f"✅ Email '{subject}' successfully sent via direct SMTP to {email}")
             return True
         else:
             logger.error(f"❌ Failed to send email '{subject}' to {email}: {last_error}")
             return False
     except Exception as e:
-        logger.error(f"❌ Failed to send email (general exception): {e}")
+        logger.error(f"❌ Failed to send direct SMTP email (general exception): {e}")
         return False
 
-def send_welcome_email(email, name):
+def send_welcome_email(email, name, origin=None):
     html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -342,10 +357,12 @@ def send_welcome_email(email, name):
       </body>
     </html>
     """
-    return send_custom_email(email, "Welcome to DocMind AI! 🧠", html)
+    return send_custom_email(email, "Welcome to DocMind AI! 🧠", html, "welcome", None, origin)
 
-def send_password_reset_email(email, name, token):
-    frontend_url = os.getenv("NEXTAUTH_URL", "http://localhost:3000")
+def send_password_reset_email(email, name, token, origin=None):
+    frontend_url = origin or os.getenv("NEXTAUTH_URL", "https://docminds-ai.vercel.app")
+    if frontend_url.endswith("/"):
+        frontend_url = frontend_url[:-1]
     reset_link = f"{frontend_url}?resetToken={token}&resetEmail={email}"
     
     html = f"""
@@ -368,9 +385,9 @@ def send_password_reset_email(email, name, token):
       </body>
     </html>
     """
-    return send_custom_email(email, "Reset Password Request - DocMind AI 🔒", html)
+    return send_custom_email(email, "Reset Password Request - DocMind AI 🔒", html, "reset", token, origin)
 
-def send_password_reset_confirmation_email(email, name):
+def send_password_reset_confirmation_email(email, name, origin=None):
     html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -386,7 +403,7 @@ def send_password_reset_confirmation_email(email, name):
       </body>
     </html>
     """
-    return send_custom_email(email, "Password Reset Successful - DocMind AI ✅", html)
+    return send_custom_email(email, "Password Reset Successful - DocMind AI ✅", html, "confirm", None, origin)
 
 def append_to_csv(filename, header, data_row):
     try:
@@ -1125,7 +1142,7 @@ async def update_user(req: UserUpdateRequest):
         if conn: conn.close()
 
 @app.post("/api/user/forgot-password")
-async def forgot_password(req: ForgotPasswordRequest, background_tasks: BackgroundTasks):
+async def forgot_password(req: ForgotPasswordRequest, request: Request, background_tasks: BackgroundTasks):
     conn = None
     cursor = None
     try:
@@ -1153,8 +1170,13 @@ async def forgot_password(req: ForgotPasswordRequest, background_tasks: Backgrou
         )
         conn.commit()
         
+        # Extract origin dynamically
+        origin = request.headers.get("origin") or request.headers.get("referer") or os.getenv("NEXTAUTH_URL", "https://docminds-ai.vercel.app")
+        if origin.endswith("/"):
+            origin = origin[:-1]
+        
         # 4. Trigger password reset email in background
-        background_tasks.add_task(send_password_reset_email, req.email, name, token)
+        background_tasks.add_task(send_password_reset_email, req.email, name, token, origin)
         
         return {"message": "A password reset link has been successfully dispatched to your email."}
     except HTTPException:
@@ -1167,7 +1189,7 @@ async def forgot_password(req: ForgotPasswordRequest, background_tasks: Backgrou
         if conn: conn.close()
 
 @app.post("/api/user/reset-password")
-async def reset_password(req: ResetPasswordRequest, background_tasks: BackgroundTasks):
+async def reset_password(req: ResetPasswordRequest, request: Request, background_tasks: BackgroundTasks):
     conn = None
     cursor = None
     try:
@@ -1204,8 +1226,13 @@ async def reset_password(req: ResetPasswordRequest, background_tasks: Background
         cursor.execute("DELETE FROM password_resets WHERE email = %s", (req.email,))
         conn.commit()
         
+        # Extract origin dynamically
+        origin = request.headers.get("origin") or request.headers.get("referer") or os.getenv("NEXTAUTH_URL", "https://docminds-ai.vercel.app")
+        if origin.endswith("/"):
+            origin = origin[:-1]
+        
         # 7. Trigger confirmation email in background
-        background_tasks.add_task(send_password_reset_confirmation_email, req.email, name)
+        background_tasks.add_task(send_password_reset_confirmation_email, req.email, name, origin)
         
         return {"message": "Your password has been successfully reset. You may now login."}
     except HTTPException:
