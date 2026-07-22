@@ -34,6 +34,12 @@ interface Stats {
     path: string
     views: number
   }>
+  recent_page_views: Array<{
+    email: string | null
+    path: string
+    timestamp: string
+    name: string | null
+  }>
 }
 
 export default function AnalyticsDashboard() {
@@ -281,6 +287,47 @@ export default function AnalyticsDashboard() {
                 ) : (
                   <tr>
                     <td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No user logins recorded yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ── 4. Recent Page Views Log (Full Width) ───────────────────────── */}
+        <section className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+          <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-3">
+            <Eye className="h-5 w-5 text-blue-500" />
+            <h2 className="text-base font-bold">Recent Page Views Log</h2>
+            <span className="text-xs text-gray-400 font-normal ml-2">Real-time user visitor tracking</span>
+            <span className="ml-auto text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full font-medium">Last 50 Views</span>
+          </div>
+
+          <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="pb-3">User Name</th>
+                  <th className="pb-3">Email / Gmail ID</th>
+                  <th className="pb-3">Path / Route</th>
+                  <th className="pb-3 text-right">Access Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
+                {stats?.recent_page_views && stats.recent_page_views.length > 0 ? (
+                  stats.recent_page_views.map((pv, i) => (
+                    <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
+                      <td className="py-3 font-medium">{pv.name || 'Anonymous Visitor'}</td>
+                      <td className="py-3 text-gray-650 dark:text-gray-350">{pv.email || 'guest / not signed in'}</td>
+                      <td className="py-3">
+                        <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400">{pv.path}</span>
+                      </td>
+                      <td className="py-3 text-right text-xs text-gray-400 font-mono">{pv.timestamp}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No page views recorded yet</td>
                   </tr>
                 )}
               </tbody>

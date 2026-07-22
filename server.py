@@ -527,13 +527,26 @@ async def get_admin_stats():
         cursor.execute("SELECT path, COUNT(*) as views FROM page_views GROUP BY path ORDER BY views DESC")
         path_summary = cursor.fetchall()
         
+        # 7. Recent Page Views (last 50)
+        cursor.execute("""
+            SELECT pv.email, pv.path, pv.timestamp, u.name 
+            FROM page_views pv 
+            LEFT JOIN users u ON pv.email = u.email 
+            ORDER BY pv.id DESC LIMIT 50
+        """)
+        recent_page_views = cursor.fetchall()
+        for row in recent_page_views:
+            if row["timestamp"]:
+                row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+        
         return {
             "total_views": total_views,
             "total_users": total_users,
             "total_logins": total_logins,
             "recent_logins": recent_logins,
             "recent_users": recent_users,
-            "path_summary": path_summary
+            "path_summary": path_summary,
+            "recent_page_views": recent_page_views
         }
     except Exception as e:
         logger.error(f"Failed to fetch admin stats: {e}")
