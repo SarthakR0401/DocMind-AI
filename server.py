@@ -565,8 +565,11 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks, request: R
         append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status,Country,City", [timestamp, req.email, req.name, "New" if is_new_user else "Updated", country, city])
         
         if is_new_user:
-            # Welcome email is disabled on registration/login
-            # background_tasks.add_task(send_welcome_email, req.email, req.name)
+            # Extract origin dynamically to proxy via Vercel send-mail endpoint
+            origin = request.headers.get("origin") or request.headers.get("referer") or os.getenv("NEXTAUTH_URL", "https://docminds-ai.vercel.app")
+            if origin.endswith("/"):
+                origin = origin[:-1]
+            background_tasks.add_task(send_welcome_email, req.email, req.name, origin)
             return {"message": "Account created successfully", "is_new": True}
         else:
             logger.info(f"User {req.email} already exists. Profile updated.")

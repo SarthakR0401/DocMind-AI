@@ -43,7 +43,31 @@ export async function POST(req: NextRequest) {
     let subject = '';
     let html = '';
     
-    if (action === 'reset') {
+    if (action === 'welcome') {
+      subject = "Welcome to DocMind AI! 🧠";
+      html = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;">
+              <h2 style="color: #7C3AED;">Welcome to DocMind AI! 🧠</h2>
+              <p>Hi <strong>${name}</strong>,</p>
+              <p>We're thrilled to have you join DocMind AI! Your account has been successfully created.</p>
+              <p>With DocMind AI, you can:</p>
+              <ul>
+                <li>Upload any PDF document.</li>
+                <li>Ask complex questions and get instant, context-aware answers.</li>
+                <li>Analyze documents with the speed of Groq LPU technology.</li>
+              </ul>
+              <p>Ready to get started? Head over to your dashboard and upload your first document!</p>
+              <p>If you have any questions, feel free to reply to this email.</p>
+              <p>Best regards,<br>The DocMind AI Team</p>
+              <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+              <p style="font-size: 0.8em; color: #777; text-align: center;">DocMind AI · Powered by Next.js & Groq</p>
+            </div>
+          </body>
+        </html>
+      `;
+    } else if (action === 'reset') {
       const frontend_url = process.env.NEXTAUTH_URL || 'https://docminds-ai.vercel.app';
       const reset_link = `${frontend_url}?resetToken=${token}&resetEmail=${email}`;
       subject = "Reset Password Request - DocMind AI 🔒";
