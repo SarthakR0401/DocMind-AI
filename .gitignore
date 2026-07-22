@@ -19,6 +19,7 @@ out/
 # Build files
 *.tsbuildinfo
 
-# Application logs / user records
+# Application logs / user records / docs
 login_records.csv
 upgrade_log.txt
+DOCMIND_COMPLETE_PROJECT_GUIDE.md
