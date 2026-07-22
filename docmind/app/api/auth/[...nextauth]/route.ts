@@ -45,6 +45,20 @@ const handler = NextAuth({
         // Log the sign-in event
         const logLine = `"${timestamp}","${email}","${name}","${provider}"\n`;
         fs.appendFileSync(logFile, logLine);
+
+        // Notify Python backend to log the login in the database
+        const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+        
+        if (email !== "unknown") {
+          await fetch(`${apiUrl}/api/analytics/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, provider })
+          }).catch(err => {
+            console.error("Failed to notify backend of OAuth login:", err);
+          });
+        }
       } catch (error) {
         console.error("Failed to process user sign-in:", error);
       }

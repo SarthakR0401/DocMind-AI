@@ -119,6 +119,24 @@ def initialize_db_pool():
                     FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
                 )
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS logins (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL,
+                    provider VARCHAR(50) NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_email (email)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS page_views (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    email VARCHAR(255) DEFAULT NULL,
+                    path VARCHAR(255) NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_email (email)
+                )
+            """)
             conn.commit()
             cursor.close()
             conn.close()
@@ -284,10 +302,31 @@ def send_welcome_email(email, name):
         logger.error(f"❌ Failed to send welcome email (general exception): {e}")
         return False
 
+def append_to_csv(filename, header, data_row):
+    try:
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+        file_exists = os.path.exists(filepath)
+        with open(filepath, "a", encoding="utf-8") as f:
+            if not file_exists:
+                f.write(header + "\n")
+            formatted_row = ",".join(f'"{item}"' for item in data_row)
+            f.write(formatted_row + "\n")
+    except Exception as e:
+        logger.error(f"Failed to append to CSV {filename}: {e}")
+
 class AuthRequest(BaseModel):
     email: str
     password: str
     name: str = "User"
+
+class OAuthLoginRequest(BaseModel):
+    email: str
+    name: str = "User"
+    provider: str = "google"
+
+class PageViewRequest(BaseModel):
+    email: str | None = None
+    path: str
 
 class ChatSessionSaveRequest(BaseModel):
     id: str
@@ -311,18 +350,35 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        sql = """
-            INSERT INTO users (email, name, password) 
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password)
-        """
-        cursor.execute(sql, (req.email, req.name, req.password))
+        
+        # Check if user already exists
+        cursor.execute("SELECT email FROM users WHERE email = %s", (req.email,))
+        user_exists = cursor.fetchone()
+        
+        is_new_user = False
+        if user_exists:
+            # Update password and name for existing user
+            sql = "UPDATE users SET name = %s, password = %s WHERE email = %s"
+            cursor.execute(sql, (req.name, req.password, req.email))
+        else:
+            # Create new user
+            sql = "INSERT INTO users (email, name, password) VALUES (%s, %s, %s)"
+            cursor.execute(sql, (req.email, req.name, req.password))
+            is_new_user = True
+            
         conn.commit()
         
-        # Send welcome email in background
-        background_tasks.add_task(send_welcome_email, req.email, req.name)
+        # Track registration in CSV
+        timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
+        append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status", [timestamp, req.email, req.name, "New" if is_new_user else "Updated"])
         
-        return {"message": "Account created/updated successfully"}
+        if is_new_user:
+            # Send welcome email only to brand new users
+            background_tasks.add_task(send_welcome_email, req.email, req.name)
+            return {"message": "Account created successfully", "is_new": True}
+        else:
+            logger.info(f"User {req.email} already exists. Profile updated. Skipping welcome email.")
+            return {"message": "Account updated successfully", "is_new": False}
     except Exception as e:
         logger.error(f"Signup failed: {e}")
         raise HTTPException(500, f"Database error during signup: {e}")
@@ -348,12 +404,140 @@ async def login(req: AuthRequest):
         if password != req.password:
             raise HTTPException(401, "Invalid credentials")
             
+        # Log login to DB logins table
+        try:
+            cursor.execute("INSERT INTO logins (email, provider) VALUES (%s, %s)", (email, "credentials"))
+            conn.commit()
+        except Exception as log_err:
+            logger.error(f"Failed to log login in DB: {log_err}")
+            
+        # Log login to CSV file
+        timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
+        append_to_csv("login_records.csv", "Timestamp,Email,Name,Provider", [timestamp, email, name, "credentials"])
+            
         return {"message": "Login successful", "user": {"email": email, "name": name}}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Login failed: {e}")
         raise HTTPException(500, f"Database error during login: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/analytics/login")
+async def log_oauth_login(req: OAuthLoginRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Make sure user exists in users table (insert or update)
+        cursor.execute("SELECT email FROM users WHERE email = %s", (req.email,))
+        user_exists = cursor.fetchone()
+        
+        if not user_exists:
+            # Create a placeholder user entry for OAuth logins so user queries work properly
+            cursor.execute("INSERT INTO users (email, name, password) VALUES (%s, %s, %s)", (req.email, req.name, "oauth_authenticated"))
+            # Track signup in CSV
+            timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
+            append_to_csv("signup_records.csv", "Timestamp,Email,Name,Status", [timestamp, req.email, req.name, "OAuth_New"])
+            
+        # Log login in DB logins table
+        cursor.execute("INSERT INTO logins (email, provider) VALUES (%s, %s)", (req.email, req.provider))
+        conn.commit()
+        
+        # Log login to CSV file
+        timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
+        append_to_csv("login_records.csv", "Timestamp,Email,Name,Provider", [timestamp, req.email, req.name, req.provider])
+        
+        return {"message": "OAuth login logged successfully"}
+    except Exception as e:
+        logger.error(f"Failed to log OAuth login: {e}")
+        raise HTTPException(500, f"Database error logging OAuth login: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/analytics/pageview")
+async def log_pageview(req: PageViewRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO page_views (email, path) VALUES (%s, %s)", (req.email, req.path))
+        conn.commit()
+        
+        # Log to page_views.csv
+        timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
+        append_to_csv("page_views.csv", "Timestamp,Email,Path", [timestamp, req.email or "anonymous", req.path])
+        
+        return {"message": "Page view logged successfully"}
+    except Exception as e:
+        logger.error(f"Failed to log page view: {e}")
+        raise HTTPException(500, f"Database error logging page view: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.get("/api/admin/stats")
+async def get_admin_stats():
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        # Return dictionaries
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Total Page Views
+        cursor.execute("SELECT COUNT(*) as total_views FROM page_views")
+        total_views = cursor.fetchone()["total_views"]
+        
+        # 2. Total Registered Users
+        cursor.execute("SELECT COUNT(*) as total_users FROM users")
+        total_users = cursor.fetchone()["total_users"]
+        
+        # 3. Total Logins
+        cursor.execute("SELECT COUNT(*) as total_logins FROM logins")
+        total_logins = cursor.fetchone()["total_logins"]
+        
+        # 4. Recent Logins list (last 50)
+        cursor.execute("""
+            SELECT l.email, l.provider, l.timestamp, u.name 
+            FROM logins l 
+            LEFT JOIN users u ON l.email = u.email 
+            ORDER BY l.id DESC LIMIT 50
+        """)
+        recent_logins = cursor.fetchall()
+        # Format datetimes to strings
+        for row in recent_logins:
+            if row["timestamp"]:
+                row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+                
+        # 5. Recent Registered Users (last 50)
+        cursor.execute("SELECT email, name, created_at FROM users ORDER BY created_at DESC LIMIT 50")
+        recent_users = cursor.fetchall()
+        for row in recent_users:
+            if row["created_at"]:
+                row["created_at"] = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                
+        # 6. Page view summary by path
+        cursor.execute("SELECT path, COUNT(*) as views FROM page_views GROUP BY path ORDER BY views DESC")
+        path_summary = cursor.fetchall()
+        
+        return {
+            "total_views": total_views,
+            "total_users": total_users,
+            "total_logins": total_logins,
+            "recent_logins": recent_logins,
+            "recent_users": recent_users,
+            "path_summary": path_summary
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch admin stats: {e}")
+        raise HTTPException(500, f"Database error fetching admin stats: {e}")
     finally:
         if cursor: cursor.close()
         if conn: conn.close()

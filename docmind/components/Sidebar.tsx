@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft, Compass } from 'lucide-react'
+import Link from 'next/link'
+import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft, Compass, BarChart2 } from 'lucide-react'
 import type { View } from './AppShell'
 
 interface SidebarProps {
@@ -114,6 +115,9 @@ export default function Sidebar({
           className={`p-2.5 rounded-xl transition-colors ${view === 'history' ? 'nav-item-active' : 'nav-item-inactive'}`}>
           <Clock size={16} />
         </button>
+        <Link href="/analytics" className="p-2.5 rounded-xl transition-colors nav-item-inactive">
+          <BarChart2 size={16} />
+        </Link>
         {onStartTour && (
           <button onClick={onStartTour} title="Take Product Tour"
             className="p-2.5 rounded-xl transition-colors text-[var(--violet)] hover:bg-[var(--bg)]">
@@ -171,6 +175,11 @@ export default function Sidebar({
               {label}
             </button>
           ))}
+          <Link href="/analytics"
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-left transition-all duration-150 nav-item-inactive hover:bg-[var(--surface)]">
+            <BarChart2 size={16} />
+            Analytics
+          </Link>
         </div>
 
         <Divider className="mx-4" />
