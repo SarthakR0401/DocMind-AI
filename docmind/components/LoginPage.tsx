@@ -28,10 +28,20 @@ export default function LoginPage() {
     try {
       const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+      
+      const lat = typeof window !== 'undefined' ? sessionStorage.getItem('user-lat') : null
+      const lon = typeof window !== 'undefined' ? sessionStorage.getItem('user-lon') : null
+      
       const res = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name })
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          name,
+          latitude: lat ? parseFloat(lat) : null,
+          longitude: lon ? parseFloat(lon) : null
+        })
       })
       const data = await res.json()
       if (res.ok) {

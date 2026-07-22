@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
+import { useSession, signIn, signOut } from 'next-auth/react'
 import { 
   BarChart3, 
   Users, 
@@ -13,7 +13,8 @@ import {
   Globe, 
   UserCheck, 
   Clock, 
-  RefreshCw 
+  RefreshCw,
+  Lock
 } from 'lucide-react'
 
 interface Stats {
@@ -56,42 +57,26 @@ interface Stats {
 }
 
 export default function AnalyticsDashboard() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  
-  // Admin passcode authorization state
-  const [adminToken, setAdminToken] = useState<string | null>(null)
-  const [passcode, setPasscode] = useState('')
-  const [verifying, setVerifying] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
   const [isAuthorized, setIsAuthorized] = useState(false)
-
-  // Load token from sessionStorage on mount
-  useEffect(() => {
-    const savedToken = sessionStorage.getItem('docmind-admin-token')
-    if (savedToken) {
-      setAdminToken(savedToken)
-    }
-  }, [])
 
   // Auto-authorize if logged in via Google with admin email
   useEffect(() => {
+    if (status === 'loading') return
     if (session?.user?.email && session.user.email === 'sarthakrathi04@gmail.com') {
-      setIsAuthorized(true)
-      setAdminToken(session.user.email)
-    } else if (adminToken) {
       setIsAuthorized(true)
     } else {
       setIsAuthorized(false)
     }
-  }, [session, adminToken])
+  }, [session, status])
 
-  const fetchStats = async (tokenToUse?: string) => {
-    const activeToken = tokenToUse || adminToken
-    if (!activeToken) {
+  const fetchStats = async () => {
+    const adminEmail = session?.user?.email
+    if (!adminEmail || adminEmail !== 'sarthakrathi04@gmail.com') {
       setLoading(false)
       return
     }
@@ -103,15 +88,13 @@ export default function AnalyticsDashboard() {
       
       const res = await fetch(`${apiUrl}/api/admin/stats`, {
         headers: {
-          'Authorization': `Bearer ${activeToken}`
+          'Authorization': `Bearer ${adminEmail}`
         }
       })
       
       if (!res.ok) {
         if (res.status === 403) {
           setIsAuthorized(false)
-          setAdminToken(null)
-          sessionStorage.removeItem('docmind-admin-token')
           throw new Error('Access Denied: Invalid administrator session')
         }
         throw new Error(`Failed to fetch stats: ${res.statusText}`)
@@ -129,49 +112,19 @@ export default function AnalyticsDashboard() {
   }
 
   useEffect(() => {
-    if (isAuthorized && adminToken) {
-      fetchStats(adminToken)
-    } else {
+    if (isAuthorized) {
+      fetchStats()
+    } else if (status !== 'loading') {
       setLoading(false)
     }
-  }, [isAuthorized, adminToken])
+  }, [isAuthorized, status])
 
   const handleRefresh = () => {
     setRefreshing(true)
     fetchStats()
   }
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setVerifying(true)
-    setAuthError(null)
-
-    try {
-      const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
-      
-      const res = await fetch(`${apiUrl}/api/admin/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passcode })
-      })
-
-      if (!res.ok) {
-        throw new Error('Incorrect password, access denied.')
-      }
-
-      const data = await res.json()
-      sessionStorage.setItem('docmind-admin-token', data.token)
-      setAdminToken(data.token)
-      setIsAuthorized(true)
-    } catch (err: any) {
-      setAuthError(err.message || 'Authentication failed')
-    } finally {
-      setVerifying(false)
-    }
-  }
-
-  if (loading) {
+  if (status === 'loading' || (isAuthorized && loading)) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] flex flex-col justify-center items-center gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
@@ -186,43 +139,39 @@ export default function AnalyticsDashboard() {
         <div className="max-w-md w-full bg-white/70 dark:bg-[#111827]/70 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-xl flex flex-col gap-6 animate-fade-up">
           <div className="flex flex-col items-center text-center gap-3">
             <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl animate-float">
-              <Activity className="h-8 w-8" />
+              <Lock className="h-8 w-8 text-rose-500" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Administrator Panel</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This section is restricted. Enter your credentials to continue.</p>
+              <h1 className="text-xl font-bold tracking-tight">Access Denied</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                Only the administrator account (<span className="font-semibold text-indigo-600 dark:text-indigo-400">sarthakrathi04@gmail.com</span>) is allowed to view this console.
+              </p>
             </div>
           </div>
 
-          <form onSubmit={handleAdminLogin} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Security Password</label>
-              <input 
-                type="password" 
-                value={passcode}
-                onChange={e => setPasscode(e.target.value)}
-                placeholder="Enter admin passcode"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#1f2937]/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-mono"
-                style={{ color: 'var(--text)' }}
-                required
-              />
-            </div>
-
-            {authError && (
-              <p className="text-xs font-medium text-rose-600 dark:text-rose-450 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-950/40 px-3.5 py-2 rounded-lg">
-                ❌ {authError}
-              </p>
+          <div className="flex flex-col gap-3">
+            {session ? (
+              <>
+                <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                  Currently logged in as: <span className="font-semibold text-gray-800 dark:text-gray-200">{session.user?.email}</span>
+                </p>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/analytics' })}
+                  className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold shadow-md transition-colors"
+                >
+                  Sign Out of Current Account
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => signIn('google', { callbackUrl: '/analytics' })}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl font-semibold shadow-md transition-colors"
+                style={{ background: 'var(--violet)' }}
+              >
+                Sign In with Admin Google Account
+              </button>
             )}
-
-            <button
-              type="submit"
-              disabled={verifying}
-              className="w-full py-3.5 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl font-semibold shadow-md transition-colors disabled:opacity-50 mt-2"
-              style={{ background: 'var(--violet)' }}
-            >
-              {verifying ? 'Verifying admin credentials...' : 'Unlock Console'}
-            </button>
-          </form>
+          </div>
 
           <div className="flex items-center justify-between border-t border-gray-150 dark:border-gray-800 pt-4 mt-2">
             <Link href="/" className="text-xs font-semibold text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors">

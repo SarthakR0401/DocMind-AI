@@ -357,10 +357,38 @@ def get_client_ip(request: Request):
         return x_real_ip.strip()
     return request.client.host if request.client else "127.0.0.1"
 
+def resolve_coords_location(lat: float, lon: float):
+    """Resolve latitude/longitude coordinates to Country and City using Nominatim (OpenStreetMap)."""
+    try:
+        headers = {
+            "User-Agent": "DocMind-AI-Analytics-Agent/1.0"
+        }
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=10"
+        res = requests.get(url, headers=headers, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            address = data.get("address", {})
+            country = address.get("country", "Unknown Country")
+            city = address.get("city") or address.get("town") or address.get("village") or address.get("suburb") or "Unknown City"
+            return country, city
+    except Exception as e:
+        logger.error(f"Failed to reverse geolocate coords ({lat}, {lon}): {e}")
+    return None, None
+
+def get_request_location(ip: str, lat: float | None = None, lon: float | None = None):
+    """Resolve location using coordinates (high accuracy) or fallback to IP Geolocation."""
+    if lat is not None and lon is not None:
+        country, city = resolve_coords_location(lat, lon)
+        if country and city:
+            return country, city
+    return resolve_ip_location(ip)
+
 class AuthRequest(BaseModel):
     email: str
     password: str
     name: str = "User"
+    latitude: float | None = None
+    longitude: float | None = None
 
 class OAuthLoginRequest(BaseModel):
     email: str
@@ -370,6 +398,8 @@ class OAuthLoginRequest(BaseModel):
 class PageViewRequest(BaseModel):
     email: str | None = None
     path: str
+    latitude: float | None = None
+    longitude: float | None = None
 
 class ChatSessionSaveRequest(BaseModel):
     id: str
@@ -413,7 +443,7 @@ async def signup(req: AuthRequest, background_tasks: BackgroundTasks, request: R
         
         # Get location details
         client_ip = get_client_ip(request)
-        country, city = resolve_ip_location(client_ip)
+        country, city = get_request_location(client_ip, req.latitude, req.longitude)
         
         # Track registration in CSV
         timestamp = datetime.datetime.now().strftime("%d/%m/%Y, %i:%M:%S %p").lower()
@@ -453,7 +483,7 @@ async def login(req: AuthRequest, request: Request):
             
         # Get client IP and resolve location
         client_ip = get_client_ip(request)
-        country, city = resolve_ip_location(client_ip)
+        country, city = get_request_location(client_ip, req.latitude, req.longitude)
             
         # Log login to DB logins table
         try:
@@ -531,7 +561,7 @@ async def log_pageview(req: PageViewRequest, request: Request):
         
         # Get client IP and resolve location
         client_ip = get_client_ip(request)
-        country, city = resolve_ip_location(client_ip)
+        country, city = get_request_location(client_ip, req.latitude, req.longitude)
         
         cursor.execute(
             "INSERT INTO page_views (email, path, country, city) VALUES (%s, %s, %s, %s)", 
@@ -551,26 +581,15 @@ async def log_pageview(req: PageViewRequest, request: Request):
         if cursor: cursor.close()
         if conn: conn.close()
 
-class AdminVerifyRequest(BaseModel):
-    password: str
-
-@app.post("/api/admin/verify")
-async def verify_admin_password(req: AdminVerifyRequest):
-    admin_password = os.getenv("ADMIN_PASSWORD", "Sarthak@04")
-    if req.password == admin_password:
-        return {"success": True, "token": admin_password}
-    raise HTTPException(401, "Invalid admin password")
-
 @app.get("/api/admin/stats")
 async def get_admin_stats(authorization: str | None = Header(None)):
-    admin_password = os.getenv("ADMIN_PASSWORD", "Sarthak@04")
     admin_emails_env = os.getenv("ADMIN_EMAILS", "sarthakrathi04@gmail.com")
     admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
     
     authorized = False
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
-        if token == admin_password or token in admin_emails:
+        if token in admin_emails:
             authorized = True
             
     if not authorized:
