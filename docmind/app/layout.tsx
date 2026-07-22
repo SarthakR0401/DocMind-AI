@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Playfair_Display, Outfit, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { Analytics } from '@vercel/analytics/react'
+
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
@@ -37,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {children}
         </Providers>
+        <Analytics />
       </body>
     </html>
   )
