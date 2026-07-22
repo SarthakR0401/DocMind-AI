@@ -732,9 +732,9 @@ async def get_admin_stats(authorization: str | None = Header(None)):
         cursor.execute("SELECT COUNT(*) as total_logins FROM logins")
         total_logins = cursor.fetchone()["total_logins"]
         
-        # 4. Recent Logins list (last 50)
+        # 4. Recent Logins list (last 50) - Converted to IST (+05:30)
         cursor.execute("""
-            SELECT l.email, l.provider, l.timestamp, l.country, l.city, u.name 
+            SELECT l.email, l.provider, CONVERT_TZ(l.timestamp, @@session.time_zone, '+05:30') as timestamp, l.country, l.city, u.name 
             FROM logins l 
             LEFT JOIN users u ON l.email = u.email 
             ORDER BY l.id DESC LIMIT 50
@@ -745,8 +745,8 @@ async def get_admin_stats(authorization: str | None = Header(None)):
             if row["timestamp"]:
                 row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
                 
-        # 5. Recent Registered Users (last 50)
-        cursor.execute("SELECT email, name, created_at FROM users ORDER BY created_at DESC LIMIT 50")
+        # 5. Recent Registered Users (last 50) - Converted to IST (+05:30)
+        cursor.execute("SELECT email, name, CONVERT_TZ(created_at, @@session.time_zone, '+05:30') as created_at FROM users ORDER BY created_at DESC LIMIT 50")
         recent_users = cursor.fetchall()
         for row in recent_users:
             if row["created_at"]:
@@ -756,9 +756,9 @@ async def get_admin_stats(authorization: str | None = Header(None)):
         cursor.execute("SELECT path, COUNT(*) as views FROM page_views GROUP BY path ORDER BY views DESC")
         path_summary = cursor.fetchall()
         
-        # 7. Recent Page Views (last 50)
+        # 7. Recent Page Views (last 50) - Converted to IST (+05:30)
         cursor.execute("""
-            SELECT pv.email, pv.path, pv.timestamp, pv.country, pv.city, u.name 
+            SELECT pv.email, pv.path, CONVERT_TZ(pv.timestamp, @@session.time_zone, '+05:30') as timestamp, pv.country, pv.city, u.name 
             FROM page_views pv 
             LEFT JOIN users u ON pv.email = u.email 
             ORDER BY pv.id DESC LIMIT 50
@@ -778,13 +778,13 @@ async def get_admin_stats(authorization: str | None = Header(None)):
         """)
         country_summary = cursor.fetchall()
         
-        # 9. Daily activity over the last 7 days
+        # 9. Daily activity over the last 7 days - Converted to IST (+05:30)
         cursor.execute("""
-            SELECT DATE(timestamp) as date_val, COUNT(*) as views 
+            SELECT DATE(CONVERT_TZ(timestamp, @@session.time_zone, '+05:30')) as date_val, COUNT(*) as views 
             FROM page_views 
-            WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            GROUP BY DATE(timestamp)
-            ORDER BY DATE(timestamp) ASC
+            WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(CONVERT_TZ(timestamp, @@session.time_zone, '+05:30'))
+            ORDER BY date_val ASC
         """)
         activity_rows = cursor.fetchall()
         

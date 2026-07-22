@@ -695,7 +695,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
           <div data-tour="dashboard-overview" className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-colors md:hidden"
               style={{ color: '#8080B0' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#F3EEFF')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
