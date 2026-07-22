@@ -20,6 +20,6 @@ out/
 *.tsbuildinfo
 
 # Application logs / user records / docs
-login_records.csv
+*.csv
 upgrade_log.txt
 DOCMIND_COMPLETE_PROJECT_GUIDE.md
