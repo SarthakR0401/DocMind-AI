@@ -3,7 +3,7 @@ import logging
 import re
 import json
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -482,8 +482,31 @@ async def log_pageview(req: PageViewRequest):
         if cursor: cursor.close()
         if conn: conn.close()
 
+class AdminVerifyRequest(BaseModel):
+    password: str
+
+@app.post("/api/admin/verify")
+async def verify_admin_password(req: AdminVerifyRequest):
+    admin_password = os.getenv("ADMIN_PASSWORD", "Sarthak@04")
+    if req.password == admin_password:
+        return {"success": True, "token": admin_password}
+    raise HTTPException(401, "Invalid admin password")
+
 @app.get("/api/admin/stats")
-async def get_admin_stats():
+async def get_admin_stats(authorization: str | None = Header(None)):
+    admin_password = os.getenv("ADMIN_PASSWORD", "Sarthak@04")
+    admin_emails_env = os.getenv("ADMIN_EMAILS", "sarthakrathi04@gmail.com")
+    admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
+    
+    authorized = False
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        if token == admin_password or token in admin_emails:
+            authorized = True
+            
+    if not authorized:
+        raise HTTPException(403, "Access Denied: Invalid admin credentials")
+
     conn = None
     cursor = None
     try:
