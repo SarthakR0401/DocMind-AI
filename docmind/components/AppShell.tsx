@@ -63,6 +63,15 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [ocrEngine, setOcrEngine] = useState<'tesseract' | 'ocrspace'>('tesseract')
   const [ocrApiKey, setOcrApiKey] = useState('')
+  const [currentUserName, setCurrentUserName] = useState(user.name)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  // Local settings modal temporary form states
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'security' | 'preferences'>('profile')
+  const [tempName, setTempName] = useState('')
+  const [tempPassword, setTempPassword] = useState('')
+  const [tempPasswordConfirm, setTempPasswordConfirm] = useState('')
+  const [settingsMessage, setSettingsMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -70,8 +79,28 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
       const storedKey = localStorage.getItem('docmind_ocr_apikey')
       if (storedEngine) setOcrEngine(storedEngine)
       if (storedKey) setOcrApiKey(storedKey)
+
+      const storedAvatar = localStorage.getItem(`docmind_avatar_${user.email}`)
+      if (storedAvatar) setAvatarUrl(storedAvatar)
+
+      const storedName = localStorage.getItem(`docmind_username_${user.email}`)
+      if (storedName) {
+        setCurrentUserName(storedName)
+      } else {
+        setCurrentUserName(user.name)
+      }
     }
-  }, [])
+  }, [user.email, user.name])
+
+  useEffect(() => {
+    if (showSettingsModal) {
+      setTempName(currentUserName)
+      setTempPassword('')
+      setTempPasswordConfirm('')
+      setSettingsMessage(null)
+      setActiveSettingsTab('profile')
+    }
+  }, [showSettingsModal, currentUserName])
 
   useEffect(() => {
     if (user.email && !showSetup) {
@@ -460,7 +489,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
     return () => window.removeEventListener('toggle-sidebar', handleToggle)
   }, [])
 
-  const firstName = user.name.split(' ')[0]
+  const firstName = currentUserName.split(' ')[0]
 
   const handleCreateWorkspace = async (name: string) => {
     const wsId = Date.now().toString()
@@ -623,7 +652,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <Sidebar
-          user={user}
+          user={{ name: currentUserName, email: user.email }}
           view={view}
           setView={(v) => { setView(v); if (window.innerWidth < 768) setSidebarOpen(false); }}
           pdfName={pdfName}
@@ -646,6 +675,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
           onCreateWorkspace={handleCreateWorkspace}
           onDeleteWorkspace={handleDeleteWorkspace}
           onOpenSettings={() => setShowSettingsModal(true)}
+          avatarUrl={avatarUrl}
         />
       </div>
 
@@ -882,10 +912,12 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
         {/* Settings Modal */}
         {showSettingsModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
-            <div className="bg-[var(--surface)] border-[1.5px] border-[var(--border)] rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-fade-up relative">
+            <div className="bg-[var(--surface)] border-[1.5px] border-[var(--border)] rounded-3xl max-w-3xl w-full shadow-2xl animate-fade-up relative overflow-hidden flex flex-col md:flex-row h-[90dvh] md:h-[600px]">
+              
+              {/* Close Button */}
               <button 
                 onClick={() => setShowSettingsModal(false)}
-                className="absolute top-4 right-4 p-2 text-[var(--muted)] hover:text-[var(--text)] transition-colors hover:bg-[var(--bg)] rounded-xl cursor-pointer"
+                className="absolute top-4 right-4 p-2 text-[var(--muted)] hover:text-[var(--text)] transition-colors hover:bg-[var(--bg)] rounded-xl cursor-pointer z-10"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -893,111 +925,364 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                 </svg>
               </button>
 
-              <h2 className="font-display text-xl md:text-2xl mb-6 text-[var(--text)] flex items-center gap-2">
-                ⚙️ Preferences & Security
-              </h2>
-
-              <div className="space-y-6">
-                {/* Expiry Policy */}
-                <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
-                  <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
-                    Auto-Delete Policy
-                  </label>
-                  <p className="text-[11px] mb-3 leading-normal text-[var(--muted)]">
-                    Automatically remove documents and chat logs from cloud storage after the specified period.
-                  </p>
-                  <select
-                    value={expiryHours !== null ? expiryHours : 'never'}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      setExpiryHours(val === 'never' ? null : parseInt(val))
-                    }}
-                    className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--violet)] cursor-pointer"
-                  >
-                    <option value="never">Never (Keep Forever)</option>
-                    <option value="1">Delete after 1 hour</option>
-                    <option value="24">Delete after 24 hours</option>
-                  </select>
-                </div>
-
-                {/* OCR Engine preferences */}
-                <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
-                  <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
-                    OCR Fallback Engine
-                  </label>
-                  <p className="text-[11px] mb-3 leading-normal text-[var(--muted)]">
-                    Select how DocMind processes image-based and scanned PDF pages containing zero text.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <button
-                      onClick={() => {
-                        setOcrEngine('tesseract')
-                        localStorage.setItem('docmind_ocr_engine', 'tesseract')
-                      }}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        ocrEngine === 'tesseract' 
-                          ? 'border-[var(--violet)] bg-[var(--violet)]/10 text-[var(--violet)]' 
-                          : 'border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)]'
-                      }`}
-                    >
-                      Local Tesseract OCR
-                    </button>
-                    <button
-                      onClick={() => {
-                        setOcrEngine('ocrspace')
-                        localStorage.setItem('docmind_ocr_engine', 'ocrspace')
-                      }}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        ocrEngine === 'ocrspace' 
-                          ? 'border-[var(--violet)] bg-[var(--violet)]/10 text-[var(--violet)]' 
-                          : 'border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)]'
-                      }`}
-                    >
-                      Cloud OCR.space API
-                    </button>
-                  </div>
-
-                  {ocrEngine === 'ocrspace' && (
-                    <div className="animate-fade-up">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
-                        ocr.space API Key
-                      </label>
-                      <input
-                        type="text"
-                        value={ocrApiKey}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setOcrApiKey(val)
-                          localStorage.setItem('docmind_ocr_apikey', val)
-                        }}
-                        placeholder="Enter API Key (Default: demo/helloworld)"
-                        className="w-full text-xs px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)]"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Compliance Statement */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest mb-2.5" style={{ color: 'var(--muted)' }}>
-                    Regulatory Security
-                  </label>
-                  <div className="rounded-2xl px-4 py-3.5 text-xs flex items-start gap-3 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 leading-relaxed font-medium">
-                    <span className="text-xl flex-shrink-0">🛡️</span>
-                    <span>
-                      <strong>HIPAA & GDPR Compliant Standards</strong>: Uploaded assets are held in memory-only, text chunks are database encrypted at rest, and data telemetry is never shared with external neural networks for fine-tuning.
-                    </span>
-                  </div>
-                </div>
-
-                {/* Confirm Close Button */}
+              {/* Left sidebar - Tab navigation */}
+              <div className="w-full md:w-[240px] bg-[var(--bg)] border-b md:border-b-0 md:border-r p-5 flex flex-col gap-1 flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+                <h3 className="font-display text-lg font-bold mb-4 text-[var(--text)] flex items-center gap-2 px-2">
+                  ⚙️ Settings
+                </h3>
+                
                 <button
-                  onClick={() => setShowSettingsModal(false)}
-                  className="w-full py-3.5 rounded-2xl font-bold text-white text-xs transition-all cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--violet), var(--indigo))' }}
+                  onClick={() => { setActiveSettingsTab('profile'); setSettingsMessage(null); }}
+                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left transition-all cursor-pointer ${
+                    activeSettingsTab === 'profile' 
+                      ? 'bg-[var(--violet)] text-white shadow-sm' 
+                      : 'text-[var(--text)] hover:bg-[var(--surface)]'
+                  }`}
                 >
-                  Save Preferences & Close
+                  <span>👤</span> Account Profile
                 </button>
+                
+                <button
+                  onClick={() => { setActiveSettingsTab('security'); setSettingsMessage(null); }}
+                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left transition-all cursor-pointer ${
+                    activeSettingsTab === 'security' 
+                      ? 'bg-[var(--violet)] text-white shadow-sm' 
+                      : 'text-[var(--text)] hover:bg-[var(--surface)]'
+                  }`}
+                >
+                  <span>🔒</span> Password & Security
+                </button>
+                
+                <button
+                  onClick={() => { setActiveSettingsTab('preferences'); setSettingsMessage(null); }}
+                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left transition-all cursor-pointer ${
+                    activeSettingsTab === 'preferences' 
+                      ? 'bg-[var(--violet)] text-white shadow-sm' 
+                      : 'text-[var(--text)] hover:bg-[var(--surface)]'
+                  }`}
+                >
+                  <span>🔧</span> Preferences & OCR
+                </button>
+              </div>
+
+              {/* Right Panel - Tab Content */}
+              <div className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col bg-[var(--surface)]">
+                
+                {/* Global setting response message banner */}
+                {settingsMessage && (
+                  <div className={`mb-4 rounded-xl px-4 py-3 text-xs font-bold animate-fade-up border ${
+                    settingsMessage.type === 'success' 
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' 
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                  }`}>
+                    {settingsMessage.text}
+                  </div>
+                )}
+
+                {/* 1. Account Profile Tab */}
+                {activeSettingsTab === 'profile' && (
+                  <div className="space-y-6 flex-1 flex flex-col justify-between animate-fade-up">
+                    <div className="space-y-5">
+                      <div>
+                        <h4 className="font-display text-base font-bold text-[var(--text)] mb-1">Account Details</h4>
+                        <p className="text-[11px]" style={{ color: 'var(--muted)' }}>Manage your personal details and visual avatar.</p>
+                      </div>
+
+                      {/* Avatar Editor */}
+                      <div className="flex items-center gap-5 p-4 rounded-2xl border" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
+                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[var(--border)] shadow bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xl select-none flex-shrink-0">
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{tempName ? tempName.slice(0,2).toUpperCase() : 'US'}</span>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                          <div className="flex gap-2">
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              id="avatar-upload-input" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  const reader = new FileReader()
+                                  reader.onloadend = () => {
+                                    const base64 = reader.result as string
+                                    setAvatarUrl(base64)
+                                    localStorage.setItem(`docmind_avatar_${user.email}`, base64)
+                                    setSettingsMessage({ text: "Profile picture updated locally!", type: 'success' })
+                                  }
+                                  reader.readAsDataURL(file)
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={() => document.getElementById('avatar-upload-input')?.click()}
+                              className="px-3 py-1.5 bg-[var(--violet)] text-white font-bold text-xs rounded-lg hover:bg-[var(--indigo)] transition-colors cursor-pointer"
+                            >
+                              Upload Photo
+                            </button>
+                            {avatarUrl && (
+                              <button
+                                onClick={() => {
+                                  setAvatarUrl(null)
+                                  localStorage.removeItem(`docmind_avatar_${user.email}`)
+                                  setSettingsMessage({ text: "Profile picture removed.", type: 'success' })
+                                }}
+                                className="px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--surface)] text-[var(--text)] font-bold text-xs rounded-lg transition-all cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-[10px]" style={{ color: 'var(--muted)' }}>Supports PNG or JPG. Max size 1MB.</p>
+                        </div>
+                      </div>
+
+                      {/* Display Name Input */}
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={tempName}
+                          onChange={(e) => setTempName(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                          placeholder="Your display name"
+                        />
+                      </div>
+
+                      {/* Email Input (Disabled/Secure) */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5 ml-1">
+                          <label className="block text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+                            Email Address
+                          </label>
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            🔒 Primary Account ID
+                          </span>
+                        </div>
+                        <input
+                          type="email"
+                          value={user.email}
+                          disabled
+                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] opacity-60 text-[var(--muted)] outline-none text-xs font-semibold select-none"
+                          style={{ cursor: 'not-allowed' }}
+                        />
+                        <p className="text-[10px] mt-1 ml-1" style={{ color: 'var(--muted)' }}>
+                          Email address is verified via SSO and cannot be modified.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (!tempName.trim()) {
+                          setSettingsMessage({ text: "Name cannot be empty.", type: 'error' })
+                          return
+                        }
+                        try {
+                          const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                          const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+                          const res = await fetch(`${apiUrl}/api/user/update`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: user.email, name: tempName })
+                          })
+                          if (res.ok) {
+                            setCurrentUserName(tempName)
+                            localStorage.setItem(`docmind_username_${user.email}`, tempName)
+                            setSettingsMessage({ text: "Account profile updated successfully!", type: 'success' })
+                          } else {
+                            setSettingsMessage({ text: "Failed to update profile on database.", type: 'error' })
+                          }
+                        } catch (err) {
+                          setSettingsMessage({ text: "Network error connecting to database.", type: 'error' })
+                        }
+                      }}
+                      className="w-full py-3 bg-[var(--violet)] text-white font-bold text-xs rounded-xl hover:bg-[var(--indigo)] transition-colors mt-4 cursor-pointer"
+                    >
+                      Save Profile Changes
+                    </button>
+                  </div>
+                )}
+
+                {/* 2. Password & Security Tab */}
+                {activeSettingsTab === 'security' && (
+                  <div className="space-y-6 flex-1 flex flex-col justify-between animate-fade-up">
+                    <div className="space-y-5">
+                      <div>
+                        <h4 className="font-display text-base font-bold text-[var(--text)] mb-1">Security & Credentials</h4>
+                        <p className="text-[11px]" style={{ color: 'var(--muted)' }}>Update your local password for secure portal authentication.</p>
+                      </div>
+
+                      {/* Password inputs */}
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          value={tempPassword}
+                          onChange={(e) => setTempPassword(e.target.value)}
+                          placeholder="Min 6 characters"
+                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
+                          Confirm New Password
+                        </label>
+                        <input
+                          type="password"
+                          value={tempPasswordConfirm}
+                          onChange={(e) => setTempPasswordConfirm(e.target.value)}
+                          placeholder="Repeat new password"
+                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (!tempPassword || tempPassword.length < 6) {
+                          setSettingsMessage({ text: "Password must be at least 6 characters.", type: 'error' })
+                          return
+                        }
+                        if (tempPassword !== tempPasswordConfirm) {
+                          setSettingsMessage({ text: "Passwords do not match.", type: 'error' })
+                          return
+                        }
+                        try {
+                          const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                          const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+                          const res = await fetch(`${apiUrl}/api/user/update`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: user.email, name: currentUserName, password: tempPassword })
+                          })
+                          if (res.ok) {
+                            setTempPassword('')
+                            setTempPasswordConfirm('')
+                            setSettingsMessage({ text: "Credential password updated successfully!", type: 'success' })
+                          } else {
+                            setSettingsMessage({ text: "Failed to update password in database.", type: 'error' })
+                          }
+                        } catch (err) {
+                          setSettingsMessage({ text: "Network error connecting to database.", type: 'error' })
+                        }
+                      }}
+                      className="w-full py-3 bg-[var(--violet)] text-white font-bold text-xs rounded-xl hover:bg-[var(--indigo)] transition-colors mt-4 cursor-pointer"
+                    >
+                      Update Password
+                    </button>
+                  </div>
+                )}
+
+                {/* 3. Preferences & OCR Tab */}
+                {activeSettingsTab === 'preferences' && (
+                  <div className="space-y-6 flex-1 flex flex-col justify-between animate-fade-up">
+                    <div className="space-y-5">
+                      {/* Expiry */}
+                      <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
+                          Auto-Delete Lifespan
+                        </label>
+                        <p className="text-[10px] mb-2 leading-relaxed" style={{ color: 'var(--muted)' }}>
+                          Remove documents and chats from vector memory after target hours.
+                        </p>
+                        <select
+                          value={expiryHours !== null ? expiryHours : 'never'}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setExpiryHours(val === 'never' ? null : parseInt(val))
+                          }}
+                          className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--violet)] cursor-pointer"
+                        >
+                          <option value="never">Never (Persistent Storage)</option>
+                          <option value="1">Delete after 1 Hour</option>
+                          <option value="24">Delete after 24 Hours</option>
+                        </select>
+                      </div>
+
+                      {/* OCR Engine */}
+                      <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
+                          OCR Processing Method
+                        </label>
+                        <p className="text-[10px] mb-2 leading-relaxed" style={{ color: 'var(--muted)' }}>
+                          Select default fallback engine for scanned image pages.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <button
+                            onClick={() => {
+                              setOcrEngine('tesseract')
+                              localStorage.setItem('docmind_ocr_engine', 'tesseract')
+                            }}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                              ocrEngine === 'tesseract' 
+                                ? 'border-[var(--violet)] bg-[var(--violet)]/10 text-[var(--violet)]' 
+                                : 'border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)]'
+                            }`}
+                          >
+                            Tesseract Local
+                          </button>
+                          <button
+                            onClick={() => {
+                              setOcrEngine('ocrspace')
+                              localStorage.setItem('docmind_ocr_engine', 'ocrspace')
+                            }}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                              ocrEngine === 'ocrspace' 
+                                ? 'border-[var(--violet)] bg-[var(--violet)]/10 text-[var(--violet)]' 
+                                : 'border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)]'
+                            }`}
+                          >
+                            Cloud OCRspace
+                          </button>
+                        </div>
+                        {ocrEngine === 'ocrspace' && (
+                          <div className="animate-fade-up mt-2">
+                            <label className="block text-[9px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
+                              Cloud API Key
+                            </label>
+                            <input
+                              type="text"
+                              value={ocrApiKey}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setOcrApiKey(val)
+                                localStorage.setItem('docmind_ocr_apikey', val)
+                              }}
+                              placeholder="Enter API Key (Default: demo/helloworld)"
+                              className="w-full text-xs px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)]"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Compliance Statement */}
+                      <div className="rounded-xl px-3 py-2.5 text-[10px] flex items-start gap-2.5 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 leading-normal">
+                        <span className="text-base flex-shrink-0">🛡️</span>
+                        <span>
+                          <strong>HIPAA & GDPR Encryption Standards</strong>: Documents processed memory-only, database chunks AES encrypted, and never shared for LLM fine-tuning.
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowSettingsModal(false)}
+                      className="w-full py-3 border border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)] font-bold text-xs rounded-xl transition-all cursor-pointer"
+                    >
+                      Close Settings Panel
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

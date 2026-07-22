@@ -34,6 +34,7 @@ interface SidebarProps {
   onCreateWorkspace: (name: string) => void
   onDeleteWorkspace: (id: string) => void
   onOpenSettings: () => void
+  avatarUrl: string | null
 }
 
 function fmtNum(n: number) {
@@ -44,7 +45,7 @@ export default function Sidebar({
   user, view, setView, pdfName, pdfPages, wordCount,
   archiveCount, onPdfLoad, onSave, onClear, onLogout, onStartTour, hasMessages, open, setOpen,
   expiryHours, setExpiryHours, workspaces, activeWorkspaceId, setActiveWorkspaceId, onCreateWorkspace,
-  onDeleteWorkspace, onOpenSettings
+  onDeleteWorkspace, onOpenSettings, avatarUrl
 }: SidebarProps) {
   const [dragging, setDragging] = useState(false)
   const [saveToast, setSaveToast] = useState(false)
@@ -172,13 +173,22 @@ export default function Sidebar({
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {/* User card */}
-        <div data-tour="user-profile" className="mx-4 mb-4 rounded-2xl px-4 py-3.5 shadow-sm"
+        <div data-tour="user-profile" className="mx-4 mb-4 rounded-2xl px-4 py-3.5 shadow-sm flex items-center gap-3"
           style={{ background: 'var(--bg)', border: '1.5px solid var(--border)' }}>
-          <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
-            Signed in as
+          <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden border border-[var(--border)] shadow-sm bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm select-none">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span>{user.name ? user.name.slice(0, 2).toUpperCase() : 'US'}</span>
+            )}
           </div>
-          <div className="font-bold text-sm mb-0.5" style={{ color: 'var(--text)' }}>{firstName}</div>
-          <div className="text-xs truncate" style={{ color: 'var(--muted)' }}>{user.email}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] font-bold uppercase tracking-widest leading-none mb-1.5" style={{ color: 'var(--muted)' }}>
+              Signed in as
+            </div>
+            <div className="font-bold text-xs leading-none truncate mb-1" style={{ color: 'var(--text)' }}>{user.name}</div>
+            <div className="text-[10px] truncate leading-none" style={{ color: 'var(--muted)' }}>{user.email}</div>
+          </div>
         </div>
 
         {/* Navigation */}

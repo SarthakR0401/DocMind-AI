@@ -429,6 +429,11 @@ class WorkspaceChatRequest(BaseModel):
     workspace_id: str
     history: list[dict] = []
 
+class UserUpdateRequest(BaseModel):
+    email: str
+    name: str
+    password: str | None = None
+
 class ChatSessionSaveRequest(BaseModel):
     id: str
     email: str
@@ -1017,6 +1022,30 @@ async def delete_workspace(workspace_id: str):
     except Exception as e:
         logger.error(f"Failed to delete workspace: {e}")
         raise HTTPException(500, f"Database error: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.post("/api/user/update")
+async def update_user(req: UserUpdateRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Update Name
+        cursor.execute("UPDATE users SET name = %s WHERE email = %s", (req.name, req.email))
+        
+        # 2. Update Password if provided
+        if req.password and req.password.strip():
+            cursor.execute("UPDATE users SET password = %s WHERE email = %s", (req.password, req.email))
+            
+        conn.commit()
+        return {"message": "User details updated successfully"}
+    except Exception as e:
+        logger.error(f"Failed to update user details: {e}")
+        raise HTTPException(500, f"Database error updating user: {e}")
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
