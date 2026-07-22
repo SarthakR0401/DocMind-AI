@@ -3,7 +3,7 @@ import logging
 import re
 import json
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Header, Request, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -923,10 +923,14 @@ async def root():
 
 # ── 1. PDF Upload ──────────────────────────────────────────────────────────────
 @app.post("/api/upload")
-async def upload_pdf(file: UploadFile = File(...)):
-    logger.info(f"📤 Upload request received for file: {file.filename}")
+async def upload_pdf(
+    file: UploadFile = File(...),
+    ocr_engine: str = Form("tesseract"),
+    ocr_apikey: str = Form("")
+):
+    logger.info(f"📤 Upload request received for file: {file.filename} (OCR Engine: {ocr_engine})")
     try:
-        pages, page_count = load_pdf(file.file)
+        pages, page_count = load_pdf(file.file, ocr_engine, ocr_apikey)
         total_text_len = sum(len(p[0]) for p in pages)
         if total_text_len == 0:
             logger.warning(f"❌ Text extraction failed for {file.filename}")

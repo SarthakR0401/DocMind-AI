@@ -55,11 +55,23 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [shareToast, setShareToast] = useState(false)
   const [showTour, setShowTour] = useState(false)
 
-  // Custom compliance, expiry and workspaces states
+  // Custom compliance, expiry, workspaces and settings states
   const [expiryHours, setExpiryHours] = useState<number | null>(null)
   const [workspaces, setWorkspaces] = useState<Array<{ id: string; name: string }>>([])
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [ocrEngine, setOcrEngine] = useState<'tesseract' | 'ocrspace'>('tesseract')
+  const [ocrApiKey, setOcrApiKey] = useState('')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedEngine = localStorage.getItem('docmind_ocr_engine') as 'tesseract' | 'ocrspace' | null
+      const storedKey = localStorage.getItem('docmind_ocr_apikey')
+      if (storedEngine) setOcrEngine(storedEngine)
+      if (storedKey) setOcrApiKey(storedKey)
+    }
+  }, [])
 
   useEffect(() => {
     if (user.email && !showSetup) {
@@ -633,6 +645,7 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
           setActiveWorkspaceId={setActiveWorkspaceId}
           onCreateWorkspace={handleCreateWorkspace}
           onDeleteWorkspace={handleDeleteWorkspace}
+          onOpenSettings={() => setShowSettingsModal(true)}
         />
       </div>
 
@@ -860,6 +873,130 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                   style={{ background: 'linear-gradient(135deg, var(--violet2), var(--indigo))' }}
                 >
                   Finish Setup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Modal */}
+        {showSettingsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
+            <div className="bg-[var(--surface)] border-[1.5px] border-[var(--border)] rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-fade-up relative">
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="absolute top-4 right-4 p-2 text-[var(--muted)] hover:text-[var(--text)] transition-colors hover:bg-[var(--bg)] rounded-xl cursor-pointer"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+
+              <h2 className="font-display text-xl md:text-2xl mb-6 text-[var(--text)] flex items-center gap-2">
+                ⚙️ Preferences & Security
+              </h2>
+
+              <div className="space-y-6">
+                {/* Expiry Policy */}
+                <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
+                    Auto-Delete Policy
+                  </label>
+                  <p className="text-[11px] mb-3 leading-normal text-[var(--muted)]">
+                    Automatically remove documents and chat logs from cloud storage after the specified period.
+                  </p>
+                  <select
+                    value={expiryHours !== null ? expiryHours : 'never'}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setExpiryHours(val === 'never' ? null : parseInt(val))
+                    }}
+                    className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--violet)] cursor-pointer"
+                  >
+                    <option value="never">Never (Keep Forever)</option>
+                    <option value="1">Delete after 1 hour</option>
+                    <option value="24">Delete after 24 hours</option>
+                  </select>
+                </div>
+
+                {/* OCR Engine preferences */}
+                <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
+                    OCR Fallback Engine
+                  </label>
+                  <p className="text-[11px] mb-3 leading-normal text-[var(--muted)]">
+                    Select how DocMind processes image-based and scanned PDF pages containing zero text.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <button
+                      onClick={() => {
+                        setOcrEngine('tesseract')
+                        localStorage.setItem('docmind_ocr_engine', 'tesseract')
+                      }}
+                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        ocrEngine === 'tesseract' 
+                          ? 'border-[var(--violet)] bg-[var(--violet)]/10 text-[var(--violet)]' 
+                          : 'border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)]'
+                      }`}
+                    >
+                      Local Tesseract OCR
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOcrEngine('ocrspace')
+                        localStorage.setItem('docmind_ocr_engine', 'ocrspace')
+                      }}
+                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        ocrEngine === 'ocrspace' 
+                          ? 'border-[var(--violet)] bg-[var(--violet)]/10 text-[var(--violet)]' 
+                          : 'border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)]'
+                      }`}
+                    >
+                      Cloud OCR.space API
+                    </button>
+                  </div>
+
+                  {ocrEngine === 'ocrspace' && (
+                    <div className="animate-fade-up">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1">
+                        ocr.space API Key
+                      </label>
+                      <input
+                        type="text"
+                        value={ocrApiKey}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setOcrApiKey(val)
+                          localStorage.setItem('docmind_ocr_apikey', val)
+                        }}
+                        placeholder="Enter API Key (Default: demo/helloworld)"
+                        className="w-full text-xs px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)]"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Compliance Statement */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest mb-2.5" style={{ color: 'var(--muted)' }}>
+                    Regulatory Security
+                  </label>
+                  <div className="rounded-2xl px-4 py-3.5 text-xs flex items-start gap-3 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 leading-relaxed font-medium">
+                    <span className="text-xl flex-shrink-0">🛡️</span>
+                    <span>
+                      <strong>HIPAA & GDPR Compliant Standards</strong>: Uploaded assets are held in memory-only, text chunks are database encrypted at rest, and data telemetry is never shared with external neural networks for fine-tuning.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Confirm Close Button */}
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="w-full py-3.5 rounded-2xl font-bold text-white text-xs transition-all cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, var(--violet), var(--indigo))' }}
+                >
+                  Save Preferences & Close
                 </button>
               </div>
             </div>

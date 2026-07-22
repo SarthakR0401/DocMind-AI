@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft, Compass, BarChart2 } from 'lucide-react'
+import { MessageSquare, Clock, Save, Trash2, LogOut, Upload, FileText, ChevronLeft, Compass, BarChart2, Settings } from 'lucide-react'
 import type { View } from './AppShell'
 
 export interface Workspace {
@@ -33,6 +33,7 @@ interface SidebarProps {
   setActiveWorkspaceId: (id: string | null) => void
   onCreateWorkspace: (name: string) => void
   onDeleteWorkspace: (id: string) => void
+  onOpenSettings: () => void
 }
 
 function fmtNum(n: number) {
@@ -43,7 +44,7 @@ export default function Sidebar({
   user, view, setView, pdfName, pdfPages, wordCount,
   archiveCount, onPdfLoad, onSave, onClear, onLogout, onStartTour, hasMessages, open, setOpen,
   expiryHours, setExpiryHours, workspaces, activeWorkspaceId, setActiveWorkspaceId, onCreateWorkspace,
-  onDeleteWorkspace
+  onDeleteWorkspace, onOpenSettings
 }: SidebarProps) {
   const [dragging, setDragging] = useState(false)
   const [saveToast, setSaveToast] = useState(false)
@@ -63,8 +64,13 @@ export default function Sidebar({
     setUploadingSize(size);
     setUploadProgress(0);
 
+    const ocrEngine = localStorage.getItem('docmind_ocr_engine') || 'tesseract';
+    const ocrApiKey = localStorage.getItem('docmind_ocr_apikey') || '';
+
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("ocr_engine", ocrEngine);
+    formData.append("ocr_apikey", ocrApiKey);
 
     const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     const apiUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
@@ -194,6 +200,11 @@ export default function Sidebar({
             <BarChart2 size={16} />
             Analytics
           </Link>
+          <button onClick={onOpenSettings}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-left transition-all duration-150 nav-item-inactive hover:bg-[var(--surface)] cursor-pointer">
+            <Settings size={16} />
+            Settings
+          </button>
         </div>
 
         {/* Workspaces */}
@@ -328,30 +339,6 @@ export default function Sidebar({
               </>
             )}
           </div>
-
-          {/* Expiry Policy & HIPAA Compliance Banner */}
-          <div className="mt-3 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between gap-2 px-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Auto-Delete</label>
-              <select
-                value={expiryHours !== null ? expiryHours : 'never'}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setExpiryHours(val === 'never' ? null : parseInt(val))
-                }}
-                className="text-xs font-semibold px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] focus:outline-none focus:ring-1 focus:ring-[var(--violet)] cursor-pointer"
-                style={{ color: 'var(--text)' }}
-              >
-                <option value="never">Never (Keep)</option>
-                <option value="1">After 1 Hour</option>
-                <option value="24">After 24 Hours</option>
-              </select>
-            </div>
-
-            <div className="rounded-xl px-3 py-2 text-[10px] flex items-start gap-2 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
-              <span className="text-xs flex-shrink-0">🛡️</span>
-              <span className="leading-tight font-medium">HIPAA & GDPR Compliant: Chunks encrypted at rest, parsed in-memory, & never used for AI training.</span>
-            </div>
           </div>
 
           {/* Doc stats */}
@@ -371,7 +358,6 @@ export default function Sidebar({
             </div>
           )}
         </div>
-      </div>
 
       <Divider className="mx-4" />
 

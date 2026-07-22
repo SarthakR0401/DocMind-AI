@@ -88,25 +88,26 @@ def get_huggingface_embeddings(texts: list[str]) -> list[list[float]] | None:
         _hf_api_available = False
         return None
 
-def extract_ocr_from_page(fitz_page, page_num: int) -> str:
-    """Try pytesseract local OCR first, then fall back to ocr.space API."""
-    # 1. Try local pytesseract OCR
-    try:
-        import pytesseract
-        from PIL import Image
-        pix = fitz_page.get_pixmap()
-        img_bytes = pix.tobytes("png")
-        img = Image.open(io.BytesIO(img_bytes))
-        text = pytesseract.image_to_string(img)
-        if text.strip():
-            print(f"OCR: Successfully extracted text locally for page {page_num} using pytesseract.")
-            return text
-    except Exception:
-        pass
+def extract_ocr_from_page(fitz_page, page_num: int, ocr_engine: str = "tesseract", ocr_apikey: str = "") -> str:
+    """Try selected OCR engine first, then fall back."""
+    # 1. Try local pytesseract OCR if selected
+    if ocr_engine == "tesseract":
+        try:
+            import pytesseract
+            from PIL import Image
+            pix = fitz_page.get_pixmap()
+            img_bytes = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_bytes))
+            text = pytesseract.image_to_string(img)
+            if text.strip():
+                print(f"OCR: Successfully extracted text locally for page {page_num} using pytesseract.")
+                return text
+        except Exception:
+            pass
 
-    # 2. Fallback to ocr.space API
+    # 2. Try ocr.space API
     try:
-        api_key = os.getenv("OCR_SPACE_API_KEY", "helloworld")
+        api_key = ocr_apikey if ocr_apikey.strip() else os.getenv("OCR_SPACE_API_KEY", "helloworld")
         pix = fitz_page.get_pixmap()
         img_bytes = pix.tobytes("png")
         payload = {'apikey': api_key, 'language': 'eng'}
@@ -119,9 +120,25 @@ def extract_ocr_from_page(fitz_page, page_num: int) -> str:
                 return text
     except Exception as e:
         print(f"OCR: Failed to perform cloud OCR for page {page_num}: {e}")
+
+    # Fallback to local pytesseract if cloud failed and we hadn't run it
+    if ocr_engine != "tesseract":
+        try:
+            import pytesseract
+            from PIL import Image
+            pix = fitz_page.get_pixmap()
+            img_bytes = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_bytes))
+            text = pytesseract.image_to_string(img)
+            if text.strip():
+                print(f"OCR: Successfully extracted text locally for page {page_num} using pytesseract fallback.")
+                return text
+        except Exception:
+            pass
+
     return ""
 
-def load_pdf(file_obj) -> tuple[list[tuple[str, int]], int]:
+def load_pdf(file_obj, ocr_engine: str = "tesseract", ocr_apikey: str = "") -> tuple[list[tuple[str, int]], int]:
     pages_data = []
     page_count = 0
     try:
@@ -161,7 +178,7 @@ def load_pdf(file_obj) -> tuple[list[tuple[str, int]], int]:
                     # If text is empty, try OCR
                     if not page_text.strip() and idx < len(doc):
                         fitz_page = doc[idx]
-                        page_text = extract_ocr_from_page(fitz_page, page_num)
+                        page_text = extract_ocr_from_page(fitz_page, page_num, ocr_engine, ocr_apikey)
                         
                     pages_data.append((page_text, page_num))
             pdfplumber_success = True
@@ -178,7 +195,7 @@ def load_pdf(file_obj) -> tuple[list[tuple[str, int]], int]:
                 
                 # If text is empty, try OCR
                 if not page_text.strip():
-                    page_text = extract_ocr_from_page(page, page_num)
+                    page_text = extract_ocr_from_page(page, page_num, ocr_engine, ocr_apikey)
                     
                 pages_data.append((page_text, page_num))
                 
