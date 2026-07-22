@@ -72,6 +72,10 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
   const [tempOldPassword, setTempOldPassword] = useState('')
   const [tempPassword, setTempPassword] = useState('')
   const [tempPasswordConfirm, setTempPasswordConfirm] = useState('')
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showTempPassword, setShowTempPassword] = useState(false)
+  const [showTempPasswordConfirm, setShowTempPasswordConfirm] = useState(false)
+  const [showSetupPassword, setShowSetupPassword] = useState(false)
   const [settingsMessage, setSettingsMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
@@ -861,13 +865,23 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>Create Password</label>
-                  <input 
-                    type="password" 
-                    value={setupData.password}
-                    onChange={e => setSetupData({...setupData, password: e.target.value})}
-                    placeholder="Min 6 characters"
-                    className="w-full px-5 py-3 rounded-2xl border-2 border-[var(--bg)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showSetupPassword ? "text" : "password"} 
+                      value={setupData.password}
+                      onChange={e => setSetupData({...setupData, password: e.target.value})}
+                      placeholder="Min 6 characters"
+                      className="w-full pl-5 pr-12 py-3 rounded-2xl border-2 border-[var(--bg)] focus:border-[var(--violet)] bg-[var(--bg)] text-[var(--text)] outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSetupPassword(!showSetupPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors focus:outline-none flex items-center justify-center"
+                      aria-label={showSetupPassword ? "Hide password" : "Show password"}
+                    >
+                      {showSetupPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <button
                   onClick={async () => {
@@ -1127,39 +1141,69 @@ export default function AppShell({ user, onLogout }: AppShellProps) {
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
                           Current Password (Old Password)
                         </label>
-                        <input
-                          type="password"
-                          value={tempOldPassword}
-                          onChange={(e) => setTempOldPassword(e.target.value)}
-                          placeholder="Enter current password"
-                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showOldPassword ? "text" : "password"}
+                            value={tempOldPassword}
+                            onChange={(e) => setTempOldPassword(e.target.value)}
+                            placeholder="Enter current password"
+                            className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowOldPassword(!showOldPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors focus:outline-none flex items-center justify-center"
+                            aria-label={showOldPassword ? "Hide password" : "Show password"}
+                          >
+                            {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
                           New Password
                         </label>
-                        <input
-                          type="password"
-                          value={tempPassword}
-                          onChange={(e) => setTempPassword(e.target.value)}
-                          placeholder="Min 6 characters"
-                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showTempPassword ? "text" : "password"}
+                            value={tempPassword}
+                            onChange={(e) => setTempPassword(e.target.value)}
+                            placeholder="Min 6 characters"
+                            className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowTempPassword(!showTempPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors focus:outline-none flex items-center justify-center"
+                            aria-label={showTempPassword ? "Hide password" : "Show password"}
+                          >
+                            {showTempPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5 ml-1" style={{ color: 'var(--muted)' }}>
                           Confirm New Password
                         </label>
-                        <input
-                          type="password"
-                          value={tempPasswordConfirm}
-                          onChange={(e) => setTempPasswordConfirm(e.target.value)}
-                          placeholder="Repeat new password"
-                          className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showTempPasswordConfirm ? "text" : "password"}
+                            value={tempPasswordConfirm}
+                            onChange={(e) => setTempPasswordConfirm(e.target.value)}
+                            placeholder="Repeat new password"
+                            className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--violet)] text-xs font-semibold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowTempPasswordConfirm(!showTempPasswordConfirm)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors focus:outline-none flex items-center justify-center"
+                            aria-label={showTempPasswordConfirm ? "Hide password" : "Show password"}
+                          >
+                            {showTempPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
